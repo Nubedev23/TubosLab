@@ -1,25 +1,18 @@
-// lib/services/firestore_service.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/examen.dart'; // Importa el modelo de datos Examen
+import '../models/examen.dart';
 
 class FirestoreService {
-  // 1. Obtiene la instancia Singleton de FirebaseFirestore
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-
-  // 2. Referencia a la Colección 'examenes' con el conversor
-  // El conversor convierte automáticamente los Maps de Firestore a objetos Examen de Dart
   late final CollectionReference<Examen> _examenesRef;
 
   FirestoreService() {
-    // Inicializa la referencia y define cómo mapear los datos
     _examenesRef = _db
         .collection('examenes')
         .withConverter<Examen>(
-          // fromFirestore: Convertir el Map de Firestore a objeto Examen
+          // Convierte de Map a objeto Examen
           fromFirestore: (snapshots, _) =>
               Examen.fromMap(snapshots.id, snapshots.data()!),
-          // toFirestore: Convertir el objeto Examen a un Map para guardar en Firestore
+          // Convierte de objeto Examen a Map
           toFirestore: (examen, _) => examen.toMap(),
         );
   }
@@ -28,61 +21,64 @@ class FirestoreService {
   // OPERACIONES READ (Lectura y Búsqueda)
   // =========================================================================
 
-  /// Obtiene un Stream de todos los exámenes (útil para listas que se actualizan solas).
+  /// Obtiene un Stream de todos los exámenes.
   Stream<List<Examen>> getExamenesStream() {
     return _examenesRef.snapshots().map(
       (snapshot) => snapshot.docs.map((doc) => doc.data()).toList(),
     );
   }
 
-  /// Obtiene un examen específico por su ID (usado en la edición del formulario).
-  Future<Examen> getExamenById(String id) async {
-    // Usa la referencia con el conversor, por lo que doc.data() devuelve un objeto Examen.
+  /// Obtiene un examen específico por su ID.
+  Future<Examen?> getExamen(String id) async {
     final doc = await _examenesRef.doc(id).get();
 
     if (doc.exists && doc.data() != null) {
-      return doc.data()!;
+      return doc.data();
     }
-    // Lanza una excepción si el documento no existe (ideal para manejo de errores en el formulario)
-    throw Exception("Examen con ID $id no encontrado en la base de datos.");
+    return null;
   }
 
   // =========================================================================
-  // BÚSQUEDA (Para la PantallaBusqueda)
+  // BÚSQUEDA
   // =========================================================================
 
-  /// Busca exámenes por nombre. Devuelve una lista de objetos Examen.
+  /// Busca exámenes por nombre, trayendo toda la colección y filtrando en el cliente.
   Future<List<Examen>> searchExamenes(String query) async {
-    if (query.isEmpty) return [];
+    if (query.isEmpty) {
+      return [];
+    }
 
+    // 1. Obtener TODOS los documentos de la colección
+    // Nota: Esta operación puede ser costosa si la colección es muy grande.
+    final QuerySnapshot<Examen> snapshot = await _examenesRef.get();
+
+    // Normalizamos la búsqueda a minúsculas para comparaciones insensibles a mayúsculas/minúsculas
     final String normalizedQuery = query.toLowerCase();
 
-    // Nota: Esta consulta simple busca por el campo 'nombre' que EMPIECE con la query.
-    // Firestore no soporta búsquedas que contengan la palabra en medio sin un índice externo.
-    final QuerySnapshot<Examen> result = await _examenesRef
-        .where('nombre', isGreaterThanOrEqualTo: query)
-        .where(
-          'nombre',
-          isLessThan: query + '\uf8ff',
-        ) // Truco para búsquedas que 'empiezan con'
-        .get();
+    // 2. FILTRAR los resultados en Flutter (case-insensitive)
+    final List<Examen>
+    resultados = snapshot.docs.map((doc) => doc.data()).where((examen) {
+      // Normalizamos el nombre del examen de la DB a minúsculas
+      final String examenNombreLower = examen.nombre.toLowerCase();
 
-    // El conversor ya se encarga de que doc.data() sea un objeto Examen
-    return result.docs.map((doc) => doc.data()).toList();
+      // Verificamos si el nombre normalizado CONTIENE la consulta normalizada
+      return examenNombreLower.contains(normalizedQuery);
+    }).toList();
+
+    return resultados;
   }
 
   // =========================================================================
   // OPERACIONES WRITE (Crear y Actualizar)
   // =========================================================================
 
-  /// Guarda un nuevo examen o actualiza uno existente (función del formulario).
+  /// Guarda un nuevo examen o actualiza uno existente.
   Future<void> saveExamen(Examen examen) async {
     if (examen.id.isEmpty) {
-      // Si el ID está vacío, es un examen nuevo: agregamos y Firestore asigna un ID.
+      // Nuevo examen
       await _examenesRef.add(examen);
     } else {
-      // Si el ID existe, actualizamos el documento existente.
-      // Usamos 'set' con el objeto Examen, el conversor lo mapea a Map.
+      // Actualizar existente
       await _examenesRef.doc(examen.id).set(examen);
     }
   }

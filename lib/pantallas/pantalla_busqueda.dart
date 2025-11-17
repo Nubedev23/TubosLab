@@ -1,156 +1,153 @@
 import 'package:flutter/material.dart';
 import '../utils/app_styles.dart';
+import '../services/firestore_service.dart';
+import '../models/examen.dart';
+import 'pantalla_detalle_examen.dart';
 
-class PantallaBusqueda extends StatelessWidget {
+class PantallaBusqueda extends StatefulWidget {
   const PantallaBusqueda({Key? key}) : super(key: key);
-  static const routeName = '/search';
+
+  static const routeName = '/busqueda';
+
+  @override
+  State<PantallaBusqueda> createState() => _PantallaBusquedaState();
+}
+
+class _PantallaBusquedaState extends State<PantallaBusqueda> {
+  final _searchController = TextEditingController();
+  final FirestoreService _firestoreService = FirestoreService();
+  String _currentQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    // Escucha los cambios en el campo de texto para actualizar la búsqueda
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    // Solo actualiza si la consulta ha cambiado
+    if (_searchController.text.trim() != _currentQuery) {
+      setState(() {
+        _currentQuery = _searchController.text.trim();
+      });
+    }
+  }
+
+  Widget _buildExamenItem(Examen examen) {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(12),
+        leading: const Icon(
+          Icons.science_outlined,
+          color: AppStyles.primaryDark,
+          size: 30,
+        ),
+        title: Text(
+          examen.nombre,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        subtitle: Text(
+          'Tubo: ${examen.tubo}',
+          style: const TextStyle(color: Colors.grey),
+        ),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: Colors.grey,
+        ),
+        onTap: () {
+          // Navega a la pantalla de detalles usando el ID del documento (ej: 'glicemia')
+          Navigator.of(context).pushNamed(
+            PantallaDetalleExamen.routeName,
+            arguments: examen.id, // ID en minúsculas
+          );
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: AppStyles.padding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppStyles.primaryDark.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.science_outlined,
-                      size: 20,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'TubosLab',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Agrega exámenes a tu carrito',
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Buscar exámenes',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                decoration: AppStyles.cardDecoration,
-                padding: const EdgeInsets.all(15),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.search, size: 24),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Buscar exámenes',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Buscar exámenes (ej: glucosa, hemograma...)',
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.grey,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppStyles.borderRadius / 2,
-                          ),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 0,
-                          horizontal: 10,
-                        ),
-                      ),
-                    ),
-                  ],
+      appBar: AppBar(
+        title: const Text('Búsqueda de Exámenes'),
+        backgroundColor: AppStyles.primaryDark,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Buscar examen (ej: Glicemia, Hemoglobina)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
+                filled: true,
+                fillColor: Colors.grey[200],
+                prefixIcon: const Icon(Icons.search),
               ),
-              const SizedBox(height: 20),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: AppStyles.cardDecoration,
-                child: Column(
-                  children: [
-                    const Icon(
-                      Icons.shopping_cart_outlined,
-                      size: 50,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Busca y agrega exámenes',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      'Los exámenes se optimizarán automáticamente',
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                width: double.infinity,
-                height: 60,
-                decoration: AppStyles.cardDecoration,
-                child: TextButton.icon(
-                  onPressed: () {
-                    print('Navegar a Manual Digital');
-                  },
-                  icon: const Icon(
-                    Icons.menu_book_outlined,
-                    color: AppStyles.primaryDark,
-                  ),
-                  label: const Text(
-                    'Consultar Manual Digital',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: AppStyles.primaryDark,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+          Expanded(
+            // El FutureBuilder espera los resultados del servicio de búsqueda
+            child: FutureBuilder<List<Examen>>(
+              future: _firestoreService.searchExamenes(_currentQuery),
+              builder: (context, snapshot) {
+                if (_currentQuery.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'Ingresa un término para buscar',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  );
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  // Muestra el error en la interfaz (útil para depuración)
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'No se encontraron exámenes para "$_currentQuery"',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  );
+                }
+
+                // Muestra la lista de resultados
+                final examenes = snapshot.data!;
+                return ListView.builder(
+                  itemCount: examenes.length,
+                  itemBuilder: (context, index) {
+                    return _buildExamenItem(examenes[index]);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

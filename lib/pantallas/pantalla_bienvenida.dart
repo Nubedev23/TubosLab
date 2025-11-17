@@ -72,7 +72,7 @@ class PantallaBienvenida extends StatelessWidget {
                   onPressed: () {
                     Navigator.of(
                       context,
-                    ).pushReplacementNamed(PantallaBienvenida.routeName);
+                    ).pushReplacementNamed(PantallaPrincipal.routeName);
                   },
                   icon: const Icon(Icons.arrow_forward, color: Colors.white),
                   label: const Text(

@@ -5,6 +5,7 @@ import 'utils/app_styles.dart';
 import 'pantallas/pantalla_bienvenida.dart';
 import 'pantallas/pantalla_principal.dart';
 import 'pantallas/pantalla_placeholder.dart';
+import 'pantallas/pantalla_detalle_examen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,6 +36,8 @@ class TubosApp extends StatelessWidget {
       routes: {
         PantallaBienvenida.routeName: (context) => const PantallaBienvenida(),
         PantallaPrincipal.routeName: (context) => const PantallaPrincipal(),
+        PantallaDetalleExamen.routeName: (context) =>
+            const PantallaDetalleExamen(),
       },
     );
   }
