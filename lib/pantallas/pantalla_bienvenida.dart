@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../utils/app_styles.dart';
 import 'pantalla_principal.dart';
+import 'pantalla_admin.dart'; // Importamos la pantalla de admin
 
 class PantallaBienvenida extends StatelessWidget {
-  const PantallaBienvenida({Key? key}) : super(key: key);
+  const PantallaBienvenida({super.key});
   static const routeName = '/bienvenida';
 
   @override
@@ -40,55 +41,32 @@ class PantallaBienvenida extends StatelessWidget {
               ),
               const Spacer(flex: 1),
 
-              //Cards
+              // Cards
               _FeatureCard(
-                icon: Icons.flash_on,
-                title: 'Optimización Inteligente',
-                subtitle:
-                    'Agrega exámenes a tu carrito y obtén el núemero exacto de tubos necesarios',
-                onTap: () {},
+                icon: Icons.search,
+                title: 'Iniciar Búsqueda',
+                subtitle: 'Accede a la base de datos de exámenes.',
+                onTap: () {
+                  // Navega a la pantalla principal (que contiene la búsqueda)
+                  Navigator.of(context).pushNamed(PantallaPrincipal.routeName);
+                },
               ),
               const SizedBox(height: 15),
               _FeatureCard(
-                icon: Icons.description_outlined,
-                title: 'Manual digital',
-                subtitle: 'Acceda a los protocolos de toma de muestras',
-                onTap: () {},
-              ),
-              const SizedBox(height: 15),
-              _FeatureCard(
-                icon: Icons.bar_chart,
-                title: 'Estadísticas de uso',
+                icon: Icons.admin_panel_settings,
+                title: 'Soy Administrador',
                 subtitle:
-                    'Monitorea exámenes más consultados, métricas e historial',
-                onTap: () {},
+                    'Acceso a la configuración de roles y gestión de datos.',
+                onTap: () {
+                  // Navega a la pantalla de Admin para la auto-asignación de rol
+                  Navigator.of(context).pushNamed(PantallaAdmin.routeName);
+                },
               ),
-              const Spacer(flex: 3),
+              const Spacer(flex: 1),
 
-              SizedBox(
-                width: double.infinity,
-                height: 60,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(
-                      context,
-                    ).pushReplacementNamed(PantallaPrincipal.routeName);
-                  },
-                  icon: const Icon(Icons.arrow_forward, color: Colors.white),
-                  label: const Text(
-                    'Comenzar',
-                    style: TextStyle(fontSize: 18, color: Colors.white),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppStyles.primaryDark,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppStyles.borderRadius,
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                  ),
-                ),
+              const Text(
+                'v1.0.0',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 15),
             ],

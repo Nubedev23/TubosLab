@@ -6,8 +6,11 @@ import 'pantallas/pantalla_bienvenida.dart';
 import 'pantallas/pantalla_principal.dart';
 import 'pantallas/pantalla_placeholder.dart';
 import 'pantallas/pantalla_detalle_examen.dart';
+import 'pantallas/pantalla_busqueda.dart';
+import 'pantallas/pantalla_admin.dart';
+import 'pantallas/pantalla_gestion_examen.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -15,7 +18,7 @@ void main() async {
 }
 
 class TubosApp extends StatelessWidget {
-  const TubosApp({Key? key}) : super(key: key);
+  const TubosApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -36,8 +39,13 @@ class TubosApp extends StatelessWidget {
       routes: {
         PantallaBienvenida.routeName: (context) => const PantallaBienvenida(),
         PantallaPrincipal.routeName: (context) => const PantallaPrincipal(),
+        // Las pantallas Placeholder no se usan como ruta de navegación, se usan dentro de PantallaPrincipal
         PantallaDetalleExamen.routeName: (context) =>
             const PantallaDetalleExamen(),
+        PantallaBusqueda.routeName: (context) => const PantallaBusqueda(),
+        PantallaAdmin.routeName: (context) => const PantallaAdmin(),
+        PantallaGestionExamen.routeName: (context) =>
+            const PantallaGestionExamen(), // Agregada la ruta de gestión
       },
     );
   }

@@ -4,7 +4,7 @@ import '../services/firestore_service.dart'; // Asegúrate de que esta ruta sea 
 import '../models/examen.dart'; // Asegúrate de que esta ruta sea correcta
 
 class PantallaDetalleExamen extends StatelessWidget {
-  const PantallaDetalleExamen({Key? key}) : super(key: key);
+  const PantallaDetalleExamen({super.key});
 
   static const routeName = '/detalle-examen';
 
@@ -122,30 +122,13 @@ class PantallaDetalleExamen extends StatelessWidget {
                 //   examen.tiempo_proceso,
                 // ),
                 // // Aquí usamos el operador ?? para asegurar que si 'area' es null, se muestre un mensaje
-                // _buildDetailRow(
-                //   Icons.business_outlined,
-                //   'Área del Laboratorio',
-                //   examen.area ?? 'No especificada',
-                // ),
+                _buildDetailRow(
+                  Icons.business_outlined,
+                  'Área del Laboratorio',
+                  examen.area ?? 'No especificada',
+                ),
 
-                // const Divider(height: 30),
-
-                // // --- Notas Adicionales (Ejemplo de campo libre) ---
-                // if (examen.notas.isNotEmpty) ...[
-                //   const Text(
-                //     'Notas Adicionales',
-                //     style: TextStyle(
-                //       fontSize: 18,
-                //       fontWeight: FontWeight.bold,
-                //       color: AppStyles.primaryDark,
-                //     ),
-                //   ),
-                //   const SizedBox(height: 10),
-                //   Text(
-                //     examen.notas,
-                //     style: const TextStyle(fontSize: 16, height: 1.5),
-                //   ),
-                // ],
+                const Divider(height: 30),
               ],
             ),
           );

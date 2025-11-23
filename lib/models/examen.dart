@@ -1,6 +1,7 @@
 class Examen {
   final String id;
   final String nombre;
+  final String nombre_normalizado;
   final String descripcion;
   final String tubo;
   final String anticoagulante;
@@ -11,17 +12,19 @@ class Examen {
   Examen({
     required this.id,
     required this.nombre,
+    required this.nombre_normalizado,
     required this.descripcion,
     required this.tubo,
     required this.anticoagulante,
     required this.volumen_ml,
-    this.area,
+    required this.area,
   });
 
   factory Examen.fromMap(String id, Map<String, dynamic> map) {
     return Examen(
       id: id,
       nombre: map['nombre'] ?? 'Sin Nombre',
+      nombre_normalizado: map['nombre_normalizado'] ?? '',
       descripcion: map['descripcion'] ?? 'Sin descripción',
       tubo: map['tubo'] ?? 'No especificado',
       anticoagulante: map['anticoagulante'] ?? 'N/A',
@@ -33,11 +36,13 @@ class Examen {
   Map<String, dynamic> toMap() {
     return {
       'nombre': nombre,
+      'nombre_normalizado': nombre.toLowerCase(),
       'descripcion': descripcion,
       'tubo': tubo,
       'anticoagulante': anticoagulante,
       'volumen_ml': volumen_ml,
       'area': area,
+
       'ultima_actualizacion': DateTime.now().toIso8601String(),
     };
   }

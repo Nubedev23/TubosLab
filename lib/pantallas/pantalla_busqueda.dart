@@ -33,46 +33,73 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
   }
 
   void _onSearchChanged() {
-    // Solo actualiza si la consulta ha cambiado
-    if (_searchController.text.trim() != _currentQuery) {
+    // Convierte el texto de búsqueda a minúsculas y elimina espacios
+    final newQuery = _searchController.text.trim().toLowerCase();
+
+    // Solo actualiza si la consulta (en minúsculas) ha cambiado
+    if (newQuery != _currentQuery) {
       setState(() {
-        _currentQuery = _searchController.text.trim();
+        _currentQuery =
+            newQuery; // <-- La consulta ahora se guarda en minúsculas
       });
     }
   }
 
   Widget _buildExamenItem(Examen examen) {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: const Icon(
-          Icons.science_outlined,
-          color: AppStyles.primaryDark,
-          size: 30,
+    return InkWell(
+      onTap: () {
+        Navigator.of(
+          context,
+        ).pushNamed(PantallaDetalleExamen.routeName, arguments: examen.id);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(15),
+        decoration: AppStyles.cardDecoration.copyWith(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        title: Text(
-          examen.nombre,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        child: Row(
+          children: [
+            // Icono del tubo (usamos un icono simple por ahora)
+            Icon(
+              Icons.science_outlined,
+              color: AppStyles.primaryDark,
+              size: 30,
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Aquí capitalizamos la primera letra del nombre para mostrarlo bonito
+                  Text(
+                    examen.nombre.isNotEmpty
+                        ? examen.nombre[0].toUpperCase() +
+                              examen.nombre.substring(1)
+                        : 'Examen sin nombre',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Área: ${examen.area ?? 'No especificada'}',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+          ],
         ),
-        subtitle: Text(
-          'Tubo: ${examen.tubo}',
-          style: const TextStyle(color: Colors.grey),
-        ),
-        trailing: const Icon(
-          Icons.arrow_forward_ios,
-          size: 16,
-          color: Colors.grey,
-        ),
-        onTap: () {
-          // Navega a la pantalla de detalles usando el ID del documento (ej: 'glicemia')
-          Navigator.of(context).pushNamed(
-            PantallaDetalleExamen.routeName,
-            arguments: examen.id, // ID en minúsculas
-          );
-        },
       ),
     );
   }
@@ -80,6 +107,7 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Búsqueda de Exámenes'),
         backgroundColor: AppStyles.primaryDark,
@@ -89,25 +117,29 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: AppStyles.padding.copyWith(bottom: 10),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                labelText: 'Buscar examen (ej: Glicemia, Hemoglobina)',
+                hintText: 'Buscar examen (ej: glicemia, hematologia)...',
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: AppStyles.primaryDark,
+                ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(15.0),
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: Colors.grey[200],
-                prefixIcon: const Icon(Icons.search),
+                fillColor: Colors.grey[100],
+                contentPadding: const EdgeInsets.all(15.0),
               ),
             ),
           ),
           Expanded(
-            // El FutureBuilder espera los resultados del servicio de búsqueda
-            child: FutureBuilder<List<Examen>>(
-              future: _firestoreService.searchExamenes(_currentQuery),
+            child: StreamBuilder<List<Examen>>(
+              // Llama a la nueva función de búsqueda en Firestore
+              stream: _firestoreService.streamExamenesBusqueda(_currentQuery),
               builder: (context, snapshot) {
                 if (_currentQuery.isEmpty) {
                   return Center(
@@ -130,7 +162,7 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return Center(
                     child: Text(
-                      'No se encontraron exámenes para "$_currentQuery"',
+                      'No se encontraron exámenes para \"${_searchController.text.trim()}\"',
                       style: TextStyle(color: Colors.grey[600]),
                     ),
                   );

@@ -4,8 +4,11 @@ import '../utils/app_styles.dart';
 class PantallaPlaceholder extends StatelessWidget {
   final String title;
   final IconData icon;
-  const PantallaPlaceholder({required this.title, required this.icon, Key? key})
-    : super(key: key);
+  const PantallaPlaceholder({
+    required this.title,
+    required this.icon,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -6,6 +6,9 @@ class AppStyles {
   static const Color primaryGray = Color(0xFFE0E0E0);
   static const Color accentColor = Color(0xFF42A5F5);
   static const Color cardColor = Colors.white;
+  static const Color primaryLight = Color(0xFF42A5F5);
+  static const Color successColor = Color(0xFF4CAF50); 
+  static const Color errorColor = Color(0xFFF44336);
 
   //Bordes y sombras
   static const double borderRadius = 15.0;
