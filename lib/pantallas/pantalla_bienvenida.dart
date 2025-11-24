@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
 import '../utils/app_styles.dart';
 import 'pantalla_principal.dart';
-import 'pantalla_admin.dart'; // Importamos la pantalla de admin
+import 'pantalla_admin.dart';
+import 'pantalla_login_admin.dart';
+import '../services/auth_service.dart';
 
-class PantallaBienvenida extends StatelessWidget {
+class PantallaBienvenida extends StatefulWidget {
   const PantallaBienvenida({super.key});
   static const routeName = '/bienvenida';
+
+  @override
+  State<PantallaBienvenida> createState() => _PantallaBienvenidaState();
+}
+
+class _PantallaBienvenidaState extends State<PantallaBienvenida> {
+  // 1. Obtener la instancia del Singleton de AuthService
+  final AuthService _authService = AuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +26,7 @@ class PantallaBienvenida extends StatelessWidget {
           padding: AppStyles.padding,
           child: Column(
             children: [
-              //logo y título
+              // logo y título
               const Spacer(flex: 2),
               Container(
                 padding: const EdgeInsets.all(20),
@@ -41,31 +51,72 @@ class PantallaBienvenida extends StatelessWidget {
               ),
               const Spacer(flex: 1),
 
-              // Cards
-              _FeatureCard(
-                icon: Icons.search,
-                title: 'Iniciar Búsqueda',
-                subtitle: 'Accede a la base de datos de exámenes.',
-                onTap: () {
-                  // Navega a la pantalla principal (que contiene la búsqueda)
-                  Navigator.of(context).pushNamed(PantallaPrincipal.routeName);
-                },
-              ),
-              const SizedBox(height: 15),
-              _FeatureCard(
-                icon: Icons.admin_panel_settings,
-                title: 'Soy Administrador',
-                subtitle:
-                    'Acceso a la configuración de roles y gestión de datos.',
-                onTap: () {
-                  // Navega a la pantalla de Admin para la auto-asignación de rol
-                  Navigator.of(context).pushNamed(PantallaAdmin.routeName);
-                },
-              ),
-              const Spacer(flex: 1),
+              // Contenido principal (Tarjetas)
+              // 2. Usamos StreamBuilder para escuchar el rol en tiempo real
+              StreamBuilder<String>(
+                stream: _authService.userRoleStream,
+                initialData: 'user', // Valor inicial para evitar null
+                builder: (context, snapshot) {
+                  final currentRole = snapshot.data;
+                  final isAdmin = currentRole == 'admin';
 
+                  return Column(
+                    children: [
+                      // --- TARJETA 1: INICIAR BÚSQUEDA ---
+                      _FeatureCard(
+                        icon: Icons.search,
+                        title: 'Iniciar Búsqueda',
+                        subtitle:
+                            'Accede a la información de tubos sin cuenta.',
+                        onTap: () {
+                          // Inicia sesión anónima (si no lo estás) y navega.
+                          _authService.signInAnonymously().then((_) {
+                            Navigator.of(
+                              context,
+                            ).pushReplacementNamed(PantallaPrincipal.routeName);
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // --- TARJETA 2: ADMINISTRADOR DINÁMICA ---
+                      _FeatureCard(
+                        // Icono dinámico
+                        icon: isAdmin ? Icons.settings : Icons.login,
+                        // Título dinámico
+                        title: isAdmin
+                            ? 'Panel de Administrador'
+                            : 'Soy Administrador',
+                        // Subtítulo dinámico
+                        subtitle: isAdmin
+                            ? 'Gestiona exámenes. Rol actual: ADMIN.'
+                            : 'Acceso para gestión de contenidos.',
+                        onTap: () async {
+                          if (isAdmin) {
+                            // Si ya es admin, va directo al panel
+                            Navigator.of(
+                              context,
+                            ).pushNamed(PantallaAdmin.routeName);
+                          } else {
+                            //iniciar sesión como anonimamente
+                            await _authService.signInAnonymously();
+
+                            if (context.mounted) {
+                              Navigator.of(
+                                context,
+                              ).pushNamed(PantallaLoginAdmin.routeName);
+                            }
+                          }
+                        },
+                      ),
+                    ],
+                  );
+                },
+              ),
+
+              const Spacer(flex: 2),
               const Text(
-                'v1.0.0',
+                '© 2024 Tubos App. Desarrollado por [Tu Nombre]',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 15),
@@ -77,6 +128,7 @@ class PantallaBienvenida extends StatelessWidget {
   }
 }
 
+// Clase auxiliar (se mantiene sin cambios)
 class _FeatureCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -120,6 +172,7 @@ class _FeatureCard extends StatelessWidget {
                 ],
               ),
             ),
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
           ],
         ),
       ),

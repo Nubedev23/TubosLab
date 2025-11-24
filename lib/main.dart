@@ -9,6 +9,7 @@ import 'pantallas/pantalla_detalle_examen.dart';
 import 'pantallas/pantalla_busqueda.dart';
 import 'pantallas/pantalla_admin.dart';
 import 'pantallas/pantalla_gestion_examen.dart';
+import 'pantallas/pantalla_login_admin.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +47,8 @@ class TubosApp extends StatelessWidget {
         PantallaAdmin.routeName: (context) => const PantallaAdmin(),
         PantallaGestionExamen.routeName: (context) =>
             const PantallaGestionExamen(), // Agregada la ruta de gestión
+        PantallaLoginAdmin.routeName: (context) => const PantallaLoginAdmin(),
+        '/admin': (context) => const PantallaAdmin(),
       },
     );
   }
