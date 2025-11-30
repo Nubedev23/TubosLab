@@ -16,10 +16,82 @@ class PantallaAdmin extends StatefulWidget {
 
 class _PantallaAdminState extends State<PantallaAdmin> {
   final FirestoreService _firestoreService = FirestoreService();
-  // Obtener la instancia del servicio de autenticación para cerrar sesión
   final AuthService _authService = AuthService();
 
-  // El método de asignación de rol y el mensaje redundante han sido eliminados.
+  // Función para mostrar el diálogo de confirmación
+  void _confirmDeleteExamen(Examen examen) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmar Eliminación'),
+          content: Text(
+            '¿Está seguro de que desea eliminar el examen "${examen.nombre}"?',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Cierra el diálogo
+              },
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () {
+                Navigator.of(context).pop(); // Cierra el diálogo
+                // FIX: Usamos 'examen.id!' para resolver el error de tipo String? a String
+                // El modelo Examen asegura que 'id' es no-nullable, pero si por alguna razón fuera null,
+                // la aserción asegura que el código procede si el ID existe.
+                if (examen.id != null && examen.id!.isNotEmpty) {
+                  _deleteExamen(
+                    examen.id!,
+                    examen.nombre,
+                  ); // Procede a eliminar
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Error: El ID del examen es inválido.'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              },
+              child: const Text(
+                'Eliminar',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Función para eliminar el examen y manejar el feedback
+  Future<void> _deleteExamen(String examenId, String examenNombre) async {
+    try {
+      await _firestoreService.deleteExamen(examenId);
+      // Muestra mensaje de éxito
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Examen "$examenNombre" eliminado exitosamente.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // Muestra mensaje de error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al eliminar el examen: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,50 +112,51 @@ class _PantallaAdminState extends State<PantallaAdmin> {
       body: Padding(
         padding: AppStyles.padding,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Botón para CREAR NUEVO EXAMEN
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                icon: const Icon(Icons.add),
-                label: const Text('Crear Nuevo Examen'),
+                icon: const Icon(Icons.add, color: Colors.white),
+                label: const Text(
+                  'Crear Nuevo Examen',
+                  style: TextStyle(color: Colors.white),
+                ),
                 onPressed: _navigateToNewExamen,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppStyles.primaryDark,
-                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               ),
             ),
-
-            const SizedBox(height: 30),
-
+            const SizedBox(height: 15),
             const Text(
-              'Exámenes Existentes:',
+              'Listado de Exámenes',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 10),
-
-            // Lista de EXÁMENES para edición (Usamos StreamBuilder como en búsqueda)
+            const Divider(),
             Expanded(
               child: StreamBuilder<List<Examen>>(
+                // El stream ya está ordenado por nombre dentro de FirestoreService
                 stream: _firestoreService.streamExamenes(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
+
                   if (snapshot.hasError) {
                     return Center(
-                      child: Text('Error al cargar: ${snapshot.error}'),
+                      child: Text('Error al cargar datos: ${snapshot.error}'),
                     );
                   }
+
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return const Center(
-                      child: Text('Aún no hay exámenes registrados.'),
+                      child: Text(
+                        'No hay exámenes registrados. ¡Crea el primero!',
+                      ),
                     );
                   }
 
@@ -96,14 +169,33 @@ class _PantallaAdminState extends State<PantallaAdmin> {
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           title: Text(examen.nombre),
-                          subtitle: Text(examen.tubo),
-                          // Botón para EDITAR (Lleva a PantallaGestionExamen)
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.edit,
-                              color: AppStyles.primaryDark,
-                            ),
-                            onPressed: () => _navigateToEditExamen(examen.id!),
+                          subtitle: Text(
+                            'Tubo: ${examen.tubo} | Anticoagulante: ${examen.anticoagulante}',
+                          ),
+                          // Fila de botones de acción
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Botón para EDITAR (Lleva a PantallaGestionExamen)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: AppStyles.primaryDark,
+                                ),
+                                tooltip: 'Editar Examen',
+                                onPressed: () =>
+                                    _navigateToEditExamen(examen.id!),
+                              ),
+                              // Botón para ELIMINAR
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                ),
+                                tooltip: 'Eliminar Examen',
+                                onPressed: () => _confirmDeleteExamen(examen),
+                              ),
+                            ],
                           ),
                         ),
                       );

@@ -10,7 +10,7 @@ class FirestoreService {
   FirestoreService._internal();
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance; // Añadida dependencia Auth
+  final FirebaseAuth _auth = FirebaseAuth.instance; // Dependencia de Auth
 
   // Colecciones
   final String _examenesCollection = 'examenes';
@@ -37,11 +37,16 @@ class FirestoreService {
   /// STREAM DE TODOS LOS EXÁMENES
   /// ----------------------------------------------------------
   Stream<List<Examen>> streamExamenes() {
-    return _db.collection(_examenesCollection).snapshots().map((snapshot) {
-      return snapshot.docs
-          .map((doc) => Examen.fromMap(doc.id, doc.data()))
-          .toList();
-    });
+    // Añadida la ordenación para que el panel admin se vea consistente
+    return _db
+        .collection(_examenesCollection)
+        .orderBy('nombre')
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => Examen.fromMap(doc.id, doc.data()))
+              .toList();
+        });
   }
 
   /// ----------------------------------------------------------
@@ -51,13 +56,15 @@ class FirestoreService {
     final normalized = normalizar(query);
 
     if (normalized.isEmpty) {
+      // Si la búsqueda está vacía, devuelve todos los exámenes ordenados.
       return streamExamenes();
     }
 
     return _db
         .collection(_examenesCollection)
         .where('nombre_normalizado', isGreaterThanOrEqualTo: normalized)
-        .where('nombre_normalizado', isLessThan: '${normalized}z')
+        // Usamos \uf8ff para un rango de búsqueda más amplio, incluyendo prefijos más largos.
+        .where('nombre_normalizado', isLessThan: '${normalized}\uf8ff')
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
@@ -72,6 +79,7 @@ class FirestoreService {
   Future<Examen?> getExamen(String id) async {
     final doc = await _db.collection(_examenesCollection).doc(id).get();
     if (doc.exists) {
+      // Usamos el operador ! ya que verificamos doc.exists
       return Examen.fromMap(doc.id, doc.data()!);
     }
     return null;
@@ -85,37 +93,43 @@ class FirestoreService {
     final Map<String, dynamic> data = examen.toMap();
 
     // 2. Determina el ID del documento
-    // Si examen.id es null, crea un nuevo ID. Si no lo es, usa el existente.
+    // En tu modelo Examen, el ID es String y se maneja como un String vacío ("") para nuevo.
     final String docId =
-        examen.id ?? _db.collection(_examenesCollection).doc().id;
+        examen.id ??
+        ''; // Usamos ?? '' si el id fuera null (aunque el modelo lo define como no-nullable, se mantiene la precaución)
+    final bool isNew = docId.isEmpty;
 
     // 3. Inyecta la normalización del nombre (para la búsqueda)
     data['nombre_normalizado'] = normalizar(examen.nombre);
 
     // 4. Inyecta los campos de Auditoría (C8)
-    // Usamos el nombre de tu campo 'ultima_actualizacion' con la hora del servidor.
     data['ultima_actualizacion'] = FieldValue.serverTimestamp();
-    // Campo para el autor de la actualización
     data['updated_by'] = getCurrentUserId();
 
-    if (examen.id == null) {
-      debugPrint('Creando nuevo examen...');
-    } else {
-      debugPrint('Actualizando examen con ID: ${examen.id}');
+    // Si es nuevo, también agregar la fecha de creación.
+    if (isNew) {
+      data['fecha_creacion'] = FieldValue.serverTimestamp();
     }
 
-    await _db
-        .collection(_examenesCollection)
-        .doc(docId)
-        // Usamos set con merge: true para asegurar que solo actualizamos los campos
-        // proporcionados, manteniendo otros que puedan existir.
-        .set(data, SetOptions(merge: true));
+    if (isNew) {
+      debugPrint('Creando nuevo examen...');
+      await _db.collection(_examenesCollection).add(data);
+    } else {
+      debugPrint('Actualizando examen con ID: ${examen.id}');
+      await _db
+          .collection(_examenesCollection)
+          .doc(docId)
+          // Usamos set con merge: true para asegurar que solo actualizamos los campos
+          // proporcionados, manteniendo otros que puedan existir.
+          .set(data, SetOptions(merge: true));
+    }
   }
 
   /// ----------------------------------------------------------
-  /// ELIMINAR EXAMEN
+  /// ELIMINAR EXAMEN (CORRECCIÓN DE REFERENCIA)
   /// ----------------------------------------------------------
   Future<void> deleteExamen(String id) async {
+    // FIX: Usamos el parámetro 'id' de la función en lugar de la variable no definida 'examenId'
     await _db.collection(_examenesCollection).doc(id).delete();
   }
 
