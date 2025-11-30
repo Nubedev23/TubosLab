@@ -116,7 +116,7 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> {
 
               const Spacer(flex: 2),
               const Text(
-                '© 2024 Tubos App. Desarrollado por [Tu Nombre]',
+                '© 2025 Tubos App. Desarrollado por MBQ',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 15),
@@ -128,7 +128,6 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> {
   }
 }
 
-// Clase auxiliar (se mantiene sin cambios)
 class _FeatureCard extends StatelessWidget {
   final IconData icon;
   final String title;

@@ -19,7 +19,7 @@ class _PantallaLoginAdminState extends State<PantallaLoginAdmin> {
   final FirestoreService _fs = FirestoreService();
 
   final String adminUser = "admin";
-  final String adminPass = "12345"; // cámbiala cuando quieras
+  final String adminPass = "12345";
 
   bool loading = false;
   String? errorMsg;
@@ -94,7 +94,7 @@ class _PantallaLoginAdminState extends State<PantallaLoginAdmin> {
       setState(() {
         loading = false;
       });
-      // Navega a la pantalla de Admin y limpia el historial de navegación
+
       Navigator.of(
         context,
       ).pushNamedAndRemoveUntil(PantallaAdmin.routeName, (route) => false);

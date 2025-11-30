@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firestore_service.dart';
 import '../utils/app_styles.dart';
-import 'pantalla_gestion_examen.dart'; // Importamos la pantalla de gestión
+import 'pantalla_gestion_examen.dart';
+import '../models/examen.dart';
+import '../services/auth_service.dart';
 
 class PantallaAdmin extends StatefulWidget {
   const PantallaAdmin({super.key});
@@ -15,127 +16,118 @@ class PantallaAdmin extends StatefulWidget {
 
 class _PantallaAdminState extends State<PantallaAdmin> {
   final FirestoreService _firestoreService = FirestoreService();
-  String _message = 'Pulsa el botón para asignarte el rol de administrador.';
+  // Obtener la instancia del servicio de autenticación para cerrar sesión
+  final AuthService _authService = AuthService();
 
-  /// 1. Función para obtener el UID y asignar el rol.
-  Future<void> _assignAdminRole() async {
-    setState(() {
-      _message = 'Asignando rol...';
-    });
-
-    // Obtener el usuario actualmente logueado (de Firebase Auth)
-    final User? user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      setState(() {
-        _message = 'ERROR: No hay ningún usuario logueado en Firebase Auth.';
-      });
-      return;
-    }
-
-    final String userId = user.uid;
-
-    try {
-      // 2. Llamar al servicio de Firestore para escribir el rol 'admin'
-      await _firestoreService.setUserRole(userId, 'admin');
-
-      setState(() {
-        _message =
-            '¡Rol de Administrador asignado exitosamente! Serás redirigido.';
-      });
-
-      // Redirigir a la pantalla de gestión
-      Future.delayed(const Duration(seconds: 2), () {
-        Navigator.of(
-          context,
-        ).pushReplacementNamed(PantallaGestionExamen.routeName);
-      });
-    } catch (e) {
-      print('Error al asignar rol de administrador: $e');
-      setState(() {
-        _message = 'ERROR al asignar rol: ${e.toString()}';
-      });
-    }
-  }
+  // El método de asignación de rol y el mensaje redundante han sido eliminados.
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Configuración de Administrador'),
-        backgroundColor: AppStyles.primaryDark,
-        foregroundColor: Colors.white,
+        title: const Text('Panel de Administración'),
+        // No mostramos el botón de retroceso por defecto.
+        automaticallyImplyLeading: false,
+        actions: [
+          // Botón para CERRAR SESIÓN (IMPORTANTE)
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.black),
+            tooltip: 'Cerrar Sesión (Admin)',
+            onPressed: () => _authService.signOut(context),
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: AppStyles.padding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 50),
-
-              const Text(
-                'Permisos de Acceso',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppStyles.primaryDark,
-                ),
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 20),
-
-              const Text(
-                'Esta pantalla solo debe ser utilizada por el primer administrador para auto-asignarse el rol. Al hacerlo, obtendrá acceso a la gestión de exámenes.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.black54),
-              ),
-
-              const SizedBox(height: 40),
-
-              // Botón para ejecutar la asignación de rol
-              ElevatedButton.icon(
-                onPressed: _assignAdminRole,
-                icon: const Icon(Icons.star),
-                label: const Text('Designarme como Administrador'),
+      body: Padding(
+        padding: AppStyles.padding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Botón para CREAR NUEVO EXAMEN
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.add),
+                label: const Text('Crear Nuevo Examen'),
+                onPressed: _navigateToNewExamen,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppStyles.primaryLight,
+                  backgroundColor: AppStyles.primaryDark,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  textStyle: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
                 ),
               ),
+            ),
 
-              const SizedBox(height: 30),
+            const SizedBox(height: 30),
 
-              // Mensaje de estado
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Text(
-                  _message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppStyles.primaryDark,
-                  ),
-                ),
+            const Text(
+              'Exámenes Existentes:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+
+            // Lista de EXÁMENES para edición (Usamos StreamBuilder como en búsqueda)
+            Expanded(
+              child: StreamBuilder<List<Examen>>(
+                stream: _firestoreService.streamExamenes(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text('Error al cargar: ${snapshot.error}'),
+                    );
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(
+                      child: Text('Aún no hay exámenes registrados.'),
+                    );
+                  }
+
+                  final examenes = snapshot.data!;
+                  return ListView.builder(
+                    itemCount: examenes.length,
+                    itemBuilder: (context, index) {
+                      final examen = examenes[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          title: Text(examen.nombre),
+                          subtitle: Text(examen.tubo),
+                          // Botón para EDITAR (Lleva a PantallaGestionExamen)
+                          trailing: IconButton(
+                            icon: const Icon(
+                              Icons.edit,
+                              color: AppStyles.primaryDark,
+                            ),
+                            onPressed: () => _navigateToEditExamen(examen.id!),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  // Navegación para crear nuevo examen (sin ID)
+  void _navigateToNewExamen() {
+    Navigator.of(context).pushNamed(PantallaGestionExamen.routeName);
+  }
+
+  // Navegación para editar examen (con ID)
+  void _navigateToEditExamen(String examenId) {
+    Navigator.of(context).pushNamed(
+      PantallaGestionExamen.routeName,
+      arguments: examenId, // Pasar el ID como argumento
     );
   }
 }

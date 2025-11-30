@@ -45,9 +45,13 @@ class TubosApp extends StatelessWidget {
             const PantallaDetalleExamen(),
         PantallaBusqueda.routeName: (context) => const PantallaBusqueda(),
         PantallaAdmin.routeName: (context) => const PantallaAdmin(),
-        PantallaGestionExamen.routeName: (context) =>
-            const PantallaGestionExamen(), // Agregada la ruta de gestión
         PantallaLoginAdmin.routeName: (context) => const PantallaLoginAdmin(),
+        PantallaGestionExamen.routeName: (context) {
+          final examenId =
+              ModalRoute.of(context)?.settings.arguments as String?;
+          return PantallaGestionExamen(examenId: examenId);
+        },
+        // Ruta de atajo para /admin
         '/admin': (context) => const PantallaAdmin(),
       },
     );

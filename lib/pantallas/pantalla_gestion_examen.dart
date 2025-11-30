@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/app_styles.dart';
 import '../services/firestore_service.dart';
 import '../models/examen.dart';
+import 'dart:developer';
 
 class PantallaGestionExamen extends StatefulWidget {
   final String? examenId;
@@ -26,12 +27,14 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
   String? _areaSeleccionada;
 
   bool _isLoading = true;
+  Examen? _examenActual;
 
   final List<String> _tubos = ['Lila', 'Celeste', 'Verde', 'Rojo'];
   final List<String> _anticoagulantes = [
     'EDTA K2',
     'Citrato de sodio 3.2%',
-    'Heparina',
+    'Heparina de sodio',
+    'Heparina de litio',
     'Sin Aditivo',
   ];
   final List<String> _areas = [
@@ -40,6 +43,8 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
     'Química',
     'Inmunología',
     'Microbiología',
+    'Hormonas',
+    'Virología',
   ];
 
   @override
@@ -98,15 +103,19 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
             backgroundColor: AppStyles.primaryDark,
           ),
         );
-        // Regresar a la pantalla anterior (o principal)
-        Navigator.of(context).pop();
+        if (mounted) {
+          // Regresar a la pantalla anterior (o principal)
+          Navigator.of(context).pop();
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al guardar el examen: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al guardar el examen: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       } finally {
         setState(() {
           _isLoading = false;
@@ -115,11 +124,54 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
     }
   }
 
+  // Widget para construir los campos de Dropdown
+  Widget _buildDropdownField({
+    required String label,
+    required List<String> items,
+    required String? value,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      ),
+      value: value,
+      hint: Text('Selecciona el $label'),
+      isExpanded: true,
+      items: items.map((String item) {
+        return DropdownMenuItem<String>(value: item, child: Text(item));
+      }).toList(),
+      onChanged: onChanged,
+      validator: (val) {
+        if (val == null || val.isEmpty) {
+          return 'Debe seleccionar una opción.';
+        }
+        return null;
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Obtener el ID pasado como argumento si existe
+    final passedExamenId =
+        ModalRoute.of(context)?.settings.arguments as String?;
+    // Si el widget se creó sin ID, pero se pasó por argumento, usar el argumento
+    if (widget.examenId == null && passedExamenId != null) {
+      // Nota: En una app real, esto podría requerir un manejo más complejo si el
+      // initState ya corrió sin el ID. Aquí asumimos que el widget se usa correctamente
+      // como ruta.
+    }
+
+    final String title = widget.examenId == null
+        ? 'Crear Nuevo Examen'
+        : 'Editar Examen ID: ${widget.examenId}';
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.examenId == null ? 'Nuevo Examen' : 'Editar Examen'),
+        title: Text(title),
         backgroundColor: AppStyles.primaryDark,
         foregroundColor: Colors.white,
       ),
@@ -131,133 +183,125 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Campo Nombre
+                  children: <Widget>[
+                    // --- Campo: Nombre del Examen ---
                     TextFormField(
                       controller: _nombreController,
                       decoration: const InputDecoration(
                         labelText: 'Nombre del Examen',
+                        border: OutlineInputBorder(),
                       ),
-                      validator: (value) => value!.isEmpty
-                          ? 'Ingrese el nombre del examen.'
+                      validator: (value) => value!.trim().isEmpty
+                          ? 'El nombre no puede estar vacío.'
                           : null,
-                    ),
-
-                    // Campo Descripción
-                    TextFormField(
-                      controller: _descripcionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Descripción / Método',
-                      ),
-                      maxLines: 3,
-                      validator: (value) =>
-                          value!.isEmpty ? 'Ingrese la descripción.' : null,
                     ),
 
                     const SizedBox(height: 20),
 
-                    // Dropdown Tubo Requerido
-                    DropdownButtonFormField<String>(
+                    // --- Campo: Descripción ---
+                    TextFormField(
+                      controller: _descripcionController,
+                      maxLines: 4,
                       decoration: const InputDecoration(
-                        labelText: 'Tubo Requerido',
+                        labelText: 'Descripción / Instrucciones',
+                        alignLabelWithHint: true,
+                        border: OutlineInputBorder(),
                       ),
-                      initialValue: _nombreTuboSeleccionado,
-                      items: _tubos
-                          .map(
-                            (tubo) => DropdownMenuItem(
-                              value: tubo,
-                              child: Text(tubo),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _nombreTuboSeleccionado = value;
-                        });
-                      },
-                      validator: (value) =>
-                          value == null ? 'Seleccione un tubo.' : null,
-                    ),
-
-                    // Dropdown Anticoagulante
-                    DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(
-                        labelText: 'Anticoagulante',
-                      ),
-                      initialValue: _anticoagulanteSeleccionado,
-                      items: _anticoagulantes
-                          .map(
-                            (anticoagulante) => DropdownMenuItem(
-                              value: anticoagulante,
-                              child: Text(anticoagulante),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _anticoagulanteSeleccionado = value;
-                        });
-                      },
-                      validator: (value) => value == null
-                          ? 'Seleccione un anticoagulante.'
+                      validator: (value) => value!.trim().isEmpty
+                          ? 'La descripción no puede estar vacía.'
                           : null,
                     ),
 
-                    // Dropdown Área
-                    DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(
-                        labelText: 'Área del Laboratorio',
-                      ),
-                      initialValue: _areaSeleccionada,
-                      items: _areas
-                          .map(
-                            (area) => DropdownMenuItem(
-                              value: area,
-                              child: Text(area),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
+                    const SizedBox(height: 20),
+
+                    // --- Campo: Área de Laboratorio (Dropdown) ---
+                    _buildDropdownField(
+                      label: 'Área del Laboratorio',
+                      items: _areas,
+                      value: _areaSeleccionada,
+                      onChanged: (String? newValue) {
                         setState(() {
-                          _areaSeleccionada = value;
+                          _areaSeleccionada = newValue;
                         });
                       },
-                      validator: (value) =>
-                          value == null ? 'Seleccione un área.' : null,
                     ),
 
-                    // Campo Volumen
+                    const SizedBox(height: 20),
+
+                    // --- Campo: Tubo (Dropdown) ---
+                    _buildDropdownField(
+                      label: 'Tubo Requerido',
+                      items: _tubos,
+                      value: _nombreTuboSeleccionado,
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _nombreTuboSeleccionado = newValue;
+                        });
+                      },
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // --- Campo: Anticoagulante (Dropdown) ---
+                    _buildDropdownField(
+                      label: 'Anticoagulante',
+                      items: _anticoagulantes,
+                      value: _anticoagulanteSeleccionado,
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _anticoagulanteSeleccionado = newValue;
+                        });
+                      },
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // --- Campo: Volumen (Numérico) ---
                     TextFormField(
                       controller: _volumenController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Volumen mínimo (ml)',
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
                       ),
-                      validator: (value) =>
-                          value!.isEmpty || double.tryParse(value) == null
-                          ? 'Ingrese un volumen válido.'
-                          : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Volumen Mínimo (ml)',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value!.isEmpty) {
+                          return 'Ingrese un volumen.';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'Ingrese un número válido.';
+                        }
+                        return null;
+                      },
                     ),
 
                     const SizedBox(height: 40),
 
+                    // --- Botón de Guardar/Actualizar ---
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _guardarExamen,
+                        onPressed: _isLoading ? null : _guardarExamen,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppStyles.primaryDark,
                           padding: const EdgeInsets.symmetric(vertical: 15),
                         ),
-                        child: Text(
-                          widget.examenId == null
-                              ? 'Guardar Nuevo Examen'
-                              : 'Actualizar Examen',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            color: Colors.white,
-                          ),
-                        ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                            : Text(
+                                widget.examenId == null
+                                    ? 'Guardar Nuevo Examen'
+                                    : 'Actualizar Examen',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 20),

@@ -1,8 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/examen.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class FirestoreService {
+  // 1. Patrón Singleton: Una sola instancia para toda la aplicación.
+  static final FirestoreService _instance = FirestoreService._internal();
+  factory FirestoreService() => _instance;
+  FirestoreService._internal();
+
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance; // Añadida dependencia Auth
 
   // Colecciones
   final String _examenesCollection = 'examenes';
@@ -17,6 +25,12 @@ class FirestoreService {
       texto = texto.replaceAll(acentos[i], sinAcentos[i]);
     }
     return texto.toLowerCase().trim();
+  }
+
+  // Obtiene el ID del usuario actual para la trazabilidad (C8)
+  String getCurrentUserId() {
+    // Si no hay usuario logueado (p. ej., durante un inicio anónimo), usa 'anonimo'.
+    return _auth.currentUser?.uid ?? 'anonimo';
   }
 
   /// ----------------------------------------------------------
@@ -43,10 +57,7 @@ class FirestoreService {
     return _db
         .collection(_examenesCollection)
         .where('nombre_normalizado', isGreaterThanOrEqualTo: normalized)
-        .where(
-          'nombre_normalizado',
-          isLessThan: '${normalized}z',
-        ) // <- corregido
+        .where('nombre_normalizado', isLessThan: '${normalized}z')
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
@@ -56,7 +67,7 @@ class FirestoreService {
   }
 
   /// ----------------------------------------------------------
-  /// OBTENER UN EXAMEN POR ID
+  /// OBTENER UN EXAMEN POR ID (RF-09)
   /// ----------------------------------------------------------
   Future<Examen?> getExamen(String id) async {
     final doc = await _db.collection(_examenesCollection).doc(id).get();
@@ -67,17 +78,38 @@ class FirestoreService {
   }
 
   /// ----------------------------------------------------------
-  /// GUARDAR / ACTUALIZAR EXAMEN
+  /// GUARDAR / ACTUALIZAR EXAMEN (RF-07, RF-09, C8)
   /// ----------------------------------------------------------
   Future<void> saveExamen(Examen examen) async {
-    final String docId = examen.id.isEmpty
-        ? _db.collection(_examenesCollection).doc().id
-        : examen.id;
+    // 1. Prepara el mapa de datos base (solo datos de negocio)
+    final Map<String, dynamic> data = examen.toMap();
+
+    // 2. Determina el ID del documento
+    // Si examen.id es null, crea un nuevo ID. Si no lo es, usa el existente.
+    final String docId =
+        examen.id ?? _db.collection(_examenesCollection).doc().id;
+
+    // 3. Inyecta la normalización del nombre (para la búsqueda)
+    data['nombre_normalizado'] = normalizar(examen.nombre);
+
+    // 4. Inyecta los campos de Auditoría (C8)
+    // Usamos el nombre de tu campo 'ultima_actualizacion' con la hora del servidor.
+    data['ultima_actualizacion'] = FieldValue.serverTimestamp();
+    // Campo para el autor de la actualización
+    data['updated_by'] = getCurrentUserId();
+
+    if (examen.id == null) {
+      debugPrint('Creando nuevo examen...');
+    } else {
+      debugPrint('Actualizando examen con ID: ${examen.id}');
+    }
 
     await _db
         .collection(_examenesCollection)
         .doc(docId)
-        .set(examen.toMap(), SetOptions(merge: true));
+        // Usamos set con merge: true para asegurar que solo actualizamos los campos
+        // proporcionados, manteniendo otros que puedan existir.
+        .set(data, SetOptions(merge: true));
   }
 
   /// ----------------------------------------------------------
@@ -88,7 +120,7 @@ class FirestoreService {
   }
 
   /// ----------------------------------------------------------
-  /// BÚSQUEDA SIMPLE (NO USADA YA)
+  /// BÚSQUEDA SIMPLE (Se mantiene para referencia, aunque se usa Stream)
   /// ----------------------------------------------------------
   Future<List<Examen>> searchExamenes(String query) async {
     final normalized = normalizar(query);
@@ -123,7 +155,8 @@ class FirestoreService {
       }
       return null;
     } on FirebaseException catch (e) {
-      print('Error al obtener rol: $e');
+      // Usar debugPrint en lugar de print para mejor manejo en Flutter
+      debugPrint('Error al obtener rol: $e');
       if (e.code == 'permission-denied') {
         throw Exception(
           '[cloud_firestore/permission-denied] No tienes permisos.',
