@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'pantalla_busqueda.dart';
 import 'pantalla_placeholder.dart';
 import '../services/auth_service.dart';
+import '../services/carrito_service.dart'; // Importar el servicio de carrito
 import 'pantalla_gestion_examen.dart';
+import 'pantalla_carrito.dart'; // Importar la pantalla de carrito
+import '../models/examen.dart';
 
 class PantallaPrincipal extends StatefulWidget {
   const PantallaPrincipal({super.key});
@@ -16,7 +19,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   int _selectedIndex = 0;
   // Instancia del servicio de autenticación (usa el constructor factory)
   final AuthService _authService = AuthService();
-
+  final CarritoService _carritoService = CarritoService();
   final List<Widget> _pantallas = [
     const PantallaBusqueda(),
     const PantallaPlaceholder(
@@ -40,6 +43,46 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
     return AppBar(
       title: const Text('TubosLab'),
       actions: <Widget>[
+        ValueListenableBuilder<List<Examen>>(
+          valueListenable: _carritoService.examenesEnCarritoListenable,
+          builder: (context, examenes, child) {
+            return Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.shopping_cart_outlined),
+                  tooltip: 'Ver Carrito',
+                  onPressed: () {
+                    Navigator.of(context).pushNamed(PantallaCarrito.routeName);
+                  },
+                ),
+                if (examenes.isNotEmpty)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '${examenes.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
         // 1. Mostrar el botón de Gestión de Exámenes (CRUD)
         StreamBuilder<String>(
           stream: _authService.userRoleStream,

@@ -82,4 +82,6 @@ class Examen {
       updatedBy: updatedBy ?? this.updatedBy,
     );
   }
+
+  String get tuboComboId => '${tubo}_$anticoagulante';
 }

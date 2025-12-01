@@ -7,11 +7,16 @@ class AppStyles {
   static const Color accentColor = Color(0xFF42A5F5);
   static const Color cardColor = Colors.white;
   static const Color primaryLight = Color(0xFF42A5F5);
-  static const Color successColor = Color(0xFF4CAF50); 
+  static const Color successColor = Color(0xFF4CAF50);
   static const Color errorColor = Color(0xFFF44336);
 
+  static const Color secondaryColor = Color(0xFF1976D2);
   //Bordes y sombras
   static const double borderRadius = 15.0;
+
+  static final cardShape = RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(borderRadius),
+  );
   static const BoxDecoration cardDecoration = BoxDecoration(
     color: cardColor,
     borderRadius: BorderRadius.all(Radius.circular(borderRadius)),

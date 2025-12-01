@@ -10,6 +10,7 @@ import 'pantallas/pantalla_busqueda.dart';
 import 'pantallas/pantalla_admin.dart';
 import 'pantallas/pantalla_gestion_examen.dart';
 import 'pantallas/pantalla_login_admin.dart';
+import 'pantallas/pantalla_carrito.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +52,8 @@ class TubosApp extends StatelessWidget {
               ModalRoute.of(context)?.settings.arguments as String?;
           return PantallaGestionExamen(examenId: examenId);
         },
+        PantallaCarrito.routeName: (context) =>
+            const PantallaCarrito(), // Nueva ruta para el carrito
         // Ruta de atajo para /admin
         '/admin': (context) => const PantallaAdmin(),
       },
