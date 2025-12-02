@@ -6,6 +6,8 @@ import '../services/carrito_service.dart'; // Importar el servicio de carrito
 import 'pantalla_gestion_examen.dart';
 import 'pantalla_carrito.dart'; // Importar la pantalla de carrito
 import '../models/examen.dart';
+import 'pantalla_admin.dart';
+import 'pantalla_manual.dart';
 
 class PantallaPrincipal extends StatefulWidget {
   const PantallaPrincipal({super.key});
@@ -22,10 +24,8 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   final CarritoService _carritoService = CarritoService();
   final List<Widget> _pantallas = [
     const PantallaBusqueda(),
-    const PantallaPlaceholder(
-      title: 'Manual digital',
-      icon: Icons.book_outlined,
-    ),
+    PantallaManual(),
+
     const PantallaPlaceholder(
       title: 'Estadísticas de Uso',
       icon: Icons.bar_chart_outlined,

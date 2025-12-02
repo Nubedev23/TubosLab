@@ -45,3 +45,17 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Si ya tienes dependencias aquí (como las de flutter.embedding), déjalas.
+
+    // AÑADIR/ACTUALIZAR ESTAS TRES LÍNEAS para la compatibilidad de Firebase
+    // 1. Usa la Plataforma de Firebase (BOM) para gestionar versiones compatibles.
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0")) 
+
+    // 2. Dependencia para Firebase Authentication
+    implementation("com.google.firebase:firebase-auth")
+    
+    // 3. Dependencia para Cloud Firestore
+    implementation("com.google.firebase:firebase-firestore-ktx") 
+}

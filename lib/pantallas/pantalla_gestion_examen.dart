@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../utils/app_styles.dart';
 import '../services/firestore_service.dart';
 import '../models/examen.dart';
-import 'dart:developer';
 
 class PantallaGestionExamen extends StatefulWidget {
   final String? examenId;
@@ -29,18 +28,19 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
   bool _isLoading = true;
   Examen? _examenActual;
 
-  final List<String> _tubos = ['Lila', 'Celeste', 'Verde', 'Rojo'];
+  final List<String> _tubos = ['Lila', 'Celeste', 'Verde', 'Rojo', 'Gris'];
   final List<String> _anticoagulantes = [
     'EDTA K2',
     'Citrato de sodio 3.2%',
     'Heparina de sodio',
     'Heparina de litio',
+    'Fluoruro de sodio',
     'Sin Aditivo',
   ];
   final List<String> _areas = [
     'Hematología',
     'Coagulación',
-    'Química',
+    'Bioquímica',
     'Inmunología',
     'Microbiología',
     'Hormonas',
@@ -66,7 +66,45 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
       _nombreTuboSeleccionado = examen.tubo;
       _anticoagulanteSeleccionado = examen.anticoagulante;
       _areaSeleccionada = examen.area;
+      // 2. Cargar Área (campo 'area' es String? - nullable)
+      final currentArea = examen.area; // Creamos una variable local (String?)
+      if (currentArea != null && currentArea.isNotEmpty) {
+        // Dentro de este 'if', currentArea es promovido automáticamente a String (no nulo)
+        _areaSeleccionada = _areas.firstWhere(
+          (areaLocal) => areaLocal.toLowerCase() == currentArea.toLowerCase(),
+          // Usamos la variable local 'currentArea' para orElse
+          orElse: () => currentArea,
+        );
+      } else {
+        // Si es nulo o vacío, reiniciamos la selección del Dropdown
+        _areaSeleccionada = null;
+      }
+
+      // 3. Cargar Tubo (campo 'tubo' es String - no nullable, con valor por defecto)
+      if (examen.tubo.isNotEmpty) {
+        _nombreTuboSeleccionado = _tubos.firstWhere(
+          // examen.tubo es seguro de usar .toLowerCase() porque no es nullable.
+          (tuboLocal) => tuboLocal.toLowerCase() == examen.tubo.toLowerCase(),
+          orElse: () => examen.tubo,
+        );
+      } else {
+        _nombreTuboSeleccionado = null;
+      }
+
+      // 4. Cargar Anticoagulante (campo 'anticoagulante' es String - no nullable, con valor por defecto)
+      if (examen.anticoagulante.isNotEmpty) {
+        _anticoagulanteSeleccionado = _anticoagulantes.firstWhere(
+          // examen.anticoagulante es seguro de usar .toLowerCase() porque no es nullable.
+          (anticoagulanteLocal) =>
+              anticoagulanteLocal.toLowerCase() ==
+              examen.anticoagulante.toLowerCase(),
+          orElse: () => examen.anticoagulante,
+        );
+      } else {
+        _anticoagulanteSeleccionado = null;
+      }
     }
+
     setState(() {
       _isLoading = false;
     });

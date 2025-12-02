@@ -160,8 +160,10 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return Center(
                     child: Text(
-                      'No se encontraron exámenes para \"${_searchController.text.trim()}\"',
-                      style: TextStyle(color: Colors.grey[600]),
+                      'No se encontró el examen \"${_searchController.text.trim()}\" por lo que se sugiere llamar al Laboratorio directamente.',
+                      style: TextStyle(
+                        color: const Color.fromARGB(255, 159, 9, 9),
+                      ),
                     ),
                   );
                 }
