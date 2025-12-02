@@ -82,4 +82,46 @@ class AuthService {
   void dispose() {
     _userRole.close();
   }
+
+  // ------------------------------------------------------------------
+  // NUEVO: LOGIN CON EMAIL/PASSWORD
+  // ------------------------------------------------------------------
+
+  // Método para iniciar sesión con Correo y Contraseña
+  Future<void> signIn(String email, String password) async {
+    try {
+      // Intenta iniciar sesión con Firebase Auth
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      // Si tiene éxito, el listener de authStateChanges() actualiza el rol automáticamente.
+    } on FirebaseAuthException catch (e) {
+      // Lanza un error con un mensaje útil para mostrar en PantallaLoginClinico
+      throw Exception(_getErrorMessage(e.code));
+    }
+  }
+
+  // Método para enviar el correo de recuperación de contraseña
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (e) {
+      // Manejo de errores específicos (ej. usuario no encontrado)
+      throw Exception(_getErrorMessage(e.code));
+    }
+  }
+
+  // Helper para traducir los códigos de error de Firebase (opcional pero bueno)
+  String _getErrorMessage(String errorCode) {
+    switch (errorCode) {
+      case 'user-not-found':
+        return 'No se encontró un usuario con ese correo.';
+      case 'wrong-password':
+        return 'Contraseña incorrecta.';
+      case 'invalid-email':
+        return 'El formato del correo es inválido.';
+      case 'user-disabled':
+        return 'Esta cuenta ha sido deshabilitada.';
+      default:
+        return 'Error de credenciales: Revisa tu correo y contraseña.';
+    }
+  }
 }

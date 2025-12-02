@@ -4,6 +4,7 @@ import 'pantalla_principal.dart';
 import 'pantalla_admin.dart';
 import 'pantalla_login_admin.dart';
 import '../services/auth_service.dart';
+import 'pantalla_login_clinico.dart';
 
 class PantallaBienvenida extends StatefulWidget {
   const PantallaBienvenida({super.key});
@@ -59,17 +60,19 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> {
                 builder: (context, snapshot) {
                   final currentRole = snapshot.data;
                   final isAdmin = currentRole == 'admin';
+                  // Puedes definir un rol 'clinico' si lo necesitas, pero por ahora 'user' logueado funciona.
+                  // final isClinico = currentRole == 'clinico';
 
                   return Column(
                     children: [
-                      // --- TARJETA 1: INICIAR BÚSQUEDA ---
+                      // --- TARJETA 1: INICIAR BÚSQUEDA (Público Anónimo) ---
                       _FeatureCard(
                         icon: Icons.search,
                         title: 'Iniciar Búsqueda',
                         subtitle:
                             'Accede a la información de tubos sin cuenta.',
                         onTap: () {
-                          // Inicia sesión anónima (si no lo estás) y navega.
+                          // Se mantiene el login anónimo para satisfacer la regla 'request.auth != null' para lectura
                           _authService.signInAnonymously().then((_) {
                             Navigator.of(
                               context,
@@ -79,7 +82,22 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> {
                       ),
                       const SizedBox(height: 20),
 
-                      // --- TARJETA 2: ADMINISTRADOR DINÁMICA ---
+                      // --- TARJETA 2: PERSONAL CLÍNICO (Login Email/Pass) ---
+                      _FeatureCard(
+                        icon: Icons.badge_outlined,
+                        title: 'Personal Clínico',
+                        subtitle:
+                            'Acceso al manual de procedimientos y gestión.',
+                        onTap: () {
+                          // Navega a la nueva pantalla de login de Personal Clínico
+                          Navigator.of(
+                            context,
+                          ).pushNamed(PantallaLoginClinico.routeName);
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // --- TARJETA 3: ADMINISTRADOR DINÁMICA (Login Email/Pass) ---
                       _FeatureCard(
                         // Icono dinámico
                         icon: isAdmin ? Icons.settings : Icons.login,
@@ -98,9 +116,8 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> {
                               context,
                             ).pushNamed(PantallaAdmin.routeName);
                           } else {
-                            //iniciar sesión como anonimamente
-                            await _authService.signInAnonymously();
-
+                            // Si no es admin, va a la pantalla de login.
+                            // Eliminamos el signInAnonymously() redundante aquí.
                             if (context.mounted) {
                               Navigator.of(
                                 context,
@@ -129,6 +146,7 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> {
 }
 
 class _FeatureCard extends StatelessWidget {
+  // ... (El resto de la clase _FeatureCard no se modifica) ...
   final IconData icon;
   final String title;
   final String subtitle;

@@ -12,6 +12,7 @@ import 'pantallas/pantalla_gestion_examen.dart';
 import 'pantallas/pantalla_login_admin.dart';
 import 'pantallas/pantalla_carrito.dart';
 import 'pantallas/pantalla_gestion_manual.dart';
+import 'pantallas/pantalla_login_clinico.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,6 +58,8 @@ class TubosApp extends StatelessWidget {
             const PantallaGestionManual(),
         PantallaCarrito.routeName: (context) =>
             const PantallaCarrito(), // Nueva ruta para el carrito
+        PantallaLoginClinico.routeName: (context) =>
+            const PantallaLoginClinico(),
         // Ruta de atajo para /admin
         '/admin': (context) => const PantallaAdmin(),
       },
