@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../utils/app_styles.dart'; // Asegúrate de que esta ruta sea correcta
-import '../services/firestore_service.dart'; // Asegúrate de que esta ruta sea correcta
-import '../models/examen.dart'; // Asegúrate de que esta ruta sea correcta
+import '../utils/app_styles.dart';
+import '../services/firestore_service.dart';
+import '../models/examen.dart';
 
 class PantallaDetalleExamen extends StatelessWidget {
   const PantallaDetalleExamen({super.key});
@@ -35,6 +35,53 @@ class PantallaDetalleExamen extends StatelessWidget {
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTuboCard(String tubo, String anticoagulante) {
+    final tuboColor = AppStyles.getColorForTubo(tubo);
+    final textColor = AppStyles.getTextColorForTubo(tubo);
+    final lightColor = AppStyles.getLightColorForTubo(tubo);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: lightColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: tuboColor, width: 2),
+      ),
+      child: Row(
+        children: [
+          // Ícono del tubo con color
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: tuboColor, shape: BoxShape.circle),
+            child: Icon(Icons.science_outlined, color: textColor, size: 32),
+          ),
+          const SizedBox(width: 16),
+          // Información del tubo
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tubo $tubo',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: tuboColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  anticoagulante,
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
                 ),
               ],
             ),
@@ -92,36 +139,37 @@ class PantallaDetalleExamen extends StatelessWidget {
                     color: AppStyles.primaryDark,
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 8),
                 // Descripción del Examen
                 Text(
                   examen.descripcion,
                   style: const TextStyle(fontSize: 16, color: Colors.black87),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
-                // --- Sección de Tubo y Muestra ---
-                _buildDetailRow(Icons.opacity, 'Tubo Requerido', examen.tubo),
-                _buildDetailRow(
-                  Icons.colorize,
-                  'Anticoagulante',
-                  examen.anticoagulante,
+                //card del tubo con color
+                _buildTuboCard(examen.tubo, examen.anticoagulante),
+                const SizedBox(height: 24),
+                const Divider(height: 1),
+                const SizedBox(height: 16),
+                const Text(
+                  'Especificaciones del Examen',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppStyles.primaryDark,
+                  ),
                 ),
+                const SizedBox(height: 16),
+
                 _buildDetailRow(
                   Icons.monitor_weight_outlined,
                   'Volumen Mínimo',
                   '${examen.volumen_ml} ml',
                 ),
 
-                const Divider(height: 30),
+                const Divider(height: 10),
 
-                // --- Sección de Procesamiento y Área ---
-                // _buildDetailRow(
-                //   Icons.access_time_filled,
-                //   'Tiempo de Proceso',
-                //   examen.tiempo_proceso,
-                // ),
-                // // Aquí usamos el operador ?? para asegurar que si 'area' es null, se muestre un mensaje
                 _buildDetailRow(
                   Icons.business_outlined,
                   'Área del Laboratorio',

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../utils/app_styles.dart';
 import '../models/examen.dart';
 import '../services/carrito_service.dart';
+// Importamos la pantalla de resumen con el nuevo nombre
+import 'pantalla_resumen_examen.dart';
 
 class PantallaCarrito extends StatelessWidget {
   const PantallaCarrito({super.key});
@@ -27,7 +29,22 @@ class PantallaCarrito extends StatelessWidget {
               return IconButton(
                 icon: const Icon(Icons.delete_sweep_outlined),
                 tooltip: 'Limpiar Carrito',
-                onPressed: carritoService.limpiarCarrito,
+                onPressed: () {
+                  // Usamos un modal o Snackbar para confirmar antes de limpiar
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text(
+                        '¿Estás seguro de limpiar el carrito?',
+                      ),
+                      action: SnackBarAction(
+                        label: 'SÍ',
+                        textColor: Colors.redAccent,
+                        onPressed: carritoService.limpiarCarrito,
+                      ),
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -61,18 +78,33 @@ class PantallaCarrito extends StatelessWidget {
             );
           }
 
-          // Muestra la lista de exámenes
+          // **QUITAMOS LA LÓGICA DE RESUMEN DE ESTA PANTALLA**
+          // Ahora esta pantalla solo muestra el detalle.
+
           return Column(
             children: [
+              // 1. LISTA DETALLADA DE EXÁMENES SOLICITADOS
+              Padding(
+                padding: AppStyles.padding.copyWith(bottom: 10, top: 15),
+                child: Text(
+                  'Exámenes seleccionados: ${examenes.length}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppStyles.primaryDark,
+                  ),
+                ),
+              ),
+
               Expanded(
                 child: ListView.builder(
-                  padding: AppStyles.padding,
+                  padding: AppStyles.padding.copyWith(top: 0),
                   itemCount: examenes.length,
                   itemBuilder: (context, index) {
                     final examen = examenes[index];
                     return Card(
                       margin: const EdgeInsets.only(bottom: 10),
-                      elevation: 2,
+                      elevation: 1,
                       shape: AppStyles.cardShape,
                       child: ListTile(
                         leading: CircleAvatar(
@@ -87,10 +119,11 @@ class PantallaCarrito extends StatelessWidget {
                         ),
                         title: Text(
                           examen.nombre,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
                         subtitle: Text(
-                          'Tubo: ${examen.tubo} (${examen.anticoagulante})',
+                          // Mantenemos el detalle de Área y Tubo
+                          'Área: ${examen.area} | Tubo: ${examen.tubo} (${examen.anticoagulante})',
                         ),
                         trailing: IconButton(
                           icon: const Icon(
@@ -106,29 +139,28 @@ class PantallaCarrito extends StatelessWidget {
                   },
                 ),
               ),
-              // Botón de Confirmación/Procesar
+              // 2. Botón de Confirmación/Procesar
               Padding(
-                padding: AppStyles.padding.copyWith(bottom: 20),
+                padding: AppStyles.padding.copyWith(bottom: 20, top: 10),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      // TODO: Implementar la lógica para procesar el carrito (ej. enviar solicitud, imprimir etiquetas)
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Funcionalidad de procesamiento pendiente. Carrito procesado lógicamente.',
-                          ),
+                      // **LÓGICA DE NAVEGACIÓN:**
+                      // Al presionar, navegamos a la pantalla de resumen.
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const PantallaResumenExamen(), // ¡Nombre actualizado!
                         ),
                       );
-                      carritoService.limpiarCarrito();
                     },
                     icon: const Icon(
                       Icons.local_shipping_outlined,
                       color: Colors.white,
                     ),
                     label: Text(
-                      'Procesar Carrito (${examenes.length})',
+                      'Procesar Solicitud (${examenes.length} Exámenes)',
                       style: const TextStyle(fontSize: 18, color: Colors.white),
                     ),
                     style: ElevatedButton.styleFrom(

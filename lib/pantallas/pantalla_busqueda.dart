@@ -52,6 +52,11 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
       valueListenable: _carritoService.examenesEnCarritoListenable,
       builder: (context, examenesEnCarrito, child) {
         final estaEnCarrito = _carritoService.estaEnCarrito(examen.id!);
+
+        //colores del tubo
+        final tuboColor = AppStyles.getColorForTubo(examen.tubo);
+        final tuboTextColor = AppStyles.getTextColorForTubo(examen.tubo);
+
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           elevation: 1,
@@ -63,18 +68,52 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
               );
             },
             leading: CircleAvatar(
-              backgroundColor: AppStyles.secondaryColor,
+              backgroundColor: tuboColor,
               child: Text(
                 examen.tubo.substring(0, 1),
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(
+                  color: tuboTextColor,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             title: Text(
               examen.nombre,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w500),
             ),
-            subtitle: Text('Tubo: ${examen.tubo} (${examen.anticoagulante})'),
+            subtitle: Row(
+              children: [
+                // Chip con el color del tubo
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: tuboColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    examen.tubo,
+                    style: TextStyle(
+                      color: tuboTextColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    examen.anticoagulante,
+                    style: const TextStyle(fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
             // Botón para agregar/remover del carrito
             trailing: IconButton(
               icon: Icon(

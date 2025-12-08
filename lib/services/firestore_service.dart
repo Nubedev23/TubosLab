@@ -44,7 +44,7 @@ class FirestoreService {
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
-              .map((doc) => Examen.fromMap(doc.id, doc.data()))
+              .map((doc) => Examen.fromMap(doc.data(), doc.id))
               .toList();
         });
   }
@@ -68,7 +68,7 @@ class FirestoreService {
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
-              .map((doc) => Examen.fromMap(doc.id, doc.data()))
+              .map((doc) => Examen.fromMap(doc.data(), doc.id))
               .toList();
         });
   }
@@ -80,7 +80,7 @@ class FirestoreService {
     final doc = await _db.collection(_examenesCollection).doc(id).get();
     if (doc.exists) {
       // Usamos el operador ! ya que verificamos doc.exists
-      return Examen.fromMap(doc.id, doc.data()!);
+      return Examen.fromMap(doc.data()!, doc.id);
     }
     return null;
   }
@@ -146,7 +146,7 @@ class FirestoreService {
         .get();
 
     return snapshot.docs
-        .map((doc) => Examen.fromMap(doc.id, doc.data()))
+        .map((doc) => Examen.fromMap(doc.data(), doc.id))
         .toList();
   }
 
