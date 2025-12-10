@@ -60,8 +60,6 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> {
                 builder: (context, snapshot) {
                   final currentRole = snapshot.data;
                   final isAdmin = currentRole == 'admin';
-                  // Puedes definir un rol 'clinico' si lo necesitas, pero por ahora 'user' logueado funciona.
-                  // final isClinico = currentRole == 'clinico';
 
                   return Column(
                     children: [
@@ -70,7 +68,7 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> {
                         icon: Icons.search,
                         title: 'Iniciar Búsqueda',
                         subtitle:
-                            'Accede a la información de tubos sin cuenta.',
+                            'Accede a la información de exámenes sin cuenta.',
                         onTap: () {
                           // Se mantiene el login anónimo para satisfacer la regla 'request.auth != null' para lectura
                           _authService.signInAnonymously().then((_) {

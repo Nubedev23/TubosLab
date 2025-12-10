@@ -72,7 +72,7 @@ class _PantallaLoginClinicoState extends State<PantallaLoginClinico> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Acceso Clínico'),
+        title: const Text('Acceso personal clínico'),
         backgroundColor: AppStyles.primaryDark,
         foregroundColor: Colors.white,
       ),
@@ -91,7 +91,7 @@ class _PantallaLoginClinicoState extends State<PantallaLoginClinico> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'Ingrese sus credenciales clínicas',
+                  'Ingrese sus credenciales',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
@@ -150,10 +150,9 @@ class _PantallaLoginClinicoState extends State<PantallaLoginClinico> {
                 ),
                 const SizedBox(height: 20),
 
-                // Opción Olvidé mi Contraseña (Opcional)
+                // Opción Olvidé mi Contraseña
                 TextButton(
                   onPressed: () {
-                    // TODO: Implementar el flujo de "Olvidé mi Contraseña" usando sendPasswordResetEmail()
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(

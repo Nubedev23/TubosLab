@@ -78,9 +78,6 @@ class PantallaCarrito extends StatelessWidget {
             );
           }
 
-          // **QUITAMOS LA LÓGICA DE RESUMEN DE ESTA PANTALLA**
-          // Ahora esta pantalla solo muestra el detalle.
-
           return Column(
             children: [
               // 1. LISTA DETALLADA DE EXÁMENES SOLICITADOS
@@ -102,17 +99,21 @@ class PantallaCarrito extends StatelessWidget {
                   itemCount: examenes.length,
                   itemBuilder: (context, index) {
                     final examen = examenes[index];
+                    final tuboColor = AppStyles.getColorForTubo(examen.tubo);
+                    final tuboTextColor = AppStyles.getTextColorForTubo(
+                      examen.tubo,
+                    );
                     return Card(
                       margin: const EdgeInsets.only(bottom: 10),
                       elevation: 1,
                       shape: AppStyles.cardShape,
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: AppStyles.secondaryColor,
+                          backgroundColor: tuboColor,
                           child: Text(
                             examen.tubo.substring(0, 1),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: tuboTextColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

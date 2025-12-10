@@ -28,20 +28,7 @@ class Examen {
   });
 
   factory Examen.fromMap(Map<String, dynamic> map, String id) {
-    final dynamic rawUpdateTime = map['ultima_actualizacion'];
-    DateTime? ultimaActualizacion;
-
-    if (rawUpdateTime != null) {
-      if (rawUpdateTime is Timestamp) {
-        ultimaActualizacion = rawUpdateTime.toDate();
-      } else if (rawUpdateTime is String) {
-        try {
-          ultimaActualizacion = DateTime.parse(rawUpdateTime);
-        } catch (e) {
-          ultimaActualizacion = null;
-        }
-      }
-    }
+    final timestamp = map['ultima_actualizacion'] as Timestamp?;
 
     return Examen(
       id: id,
@@ -53,7 +40,7 @@ class Examen {
       volumen_ml: (map['volumen_ml'] as num?)?.toDouble() ?? 0.0,
       area: map['area'] as String?,
 
-      ultimaActualizacion: ultimaActualizacion,
+      ultimaActualizacion: timestamp?.toDate(),
       updatedBy: map['updated_by'] as String?,
     );
   }
@@ -61,16 +48,11 @@ class Examen {
   Map<String, dynamic> toMap() {
     return {
       'nombre': nombre,
-      //'nombre_normalizado': nombre.toLowerCase(),
       'descripcion': descripcion,
       'tubo': tubo,
       'anticoagulante': anticoagulante,
       'volumen_ml': volumen_ml,
       'area': area,
-      'ultima_actualizacion': ultimaActualizacion != null
-          ? Timestamp.fromDate(ultimaActualizacion!)
-          : null,
-      'updated_by': updatedBy,
     };
   }
 

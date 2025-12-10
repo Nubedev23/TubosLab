@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'firebase_options.dart';
 import 'utils/app_styles.dart';
 import 'pantallas/pantalla_bienvenida.dart';
@@ -13,6 +14,7 @@ import 'pantallas/pantalla_login_admin.dart';
 import 'pantallas/pantalla_carrito.dart';
 import 'pantallas/pantalla_gestion_manual.dart';
 import 'pantallas/pantalla_login_clinico.dart';
+import 'services/analytics_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,9 +28,15 @@ class TubosApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final analyticsService = AnalyticsService();
+
     return MaterialApp(
       title: 'Tubos App',
       debugShowCheckedModeBanner: false,
+
+      //observer para analytics
+      navigatorObservers: [analyticsService.getAnalyticsObserver()],
+
       theme: ThemeData(
         primaryColor: AppStyles.primaryDark,
         colorScheme: ColorScheme.fromSeed(seedColor: AppStyles.primaryDark),
