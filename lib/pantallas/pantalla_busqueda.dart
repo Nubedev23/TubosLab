@@ -6,6 +6,7 @@ import '../services/cache_service.dart'; // NUEVO
 import '../models/examen.dart';
 import 'pantalla_detalle_examen.dart';
 import '../services/carrito_service.dart';
+import '../services/history_service.dart';
 
 class PantallaBusqueda extends StatefulWidget {
   const PantallaBusqueda({Key? key}) : super(key: key);
@@ -22,6 +23,7 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
   final CarritoService _carritoService = CarritoService();
   final AnalyticsService _analyticsService = AnalyticsService(); // NUEVO
   final CacheService _cacheService = CacheService(); // NUEVO
+  final HistoryService _historyService = HistoryService();
 
   String _currentQuery = '';
   List<String> _busquedasRecientes = []; // NUEVO
@@ -149,6 +151,7 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
           elevation: 2,
           child: ListTile(
             onTap: () {
+              _historyService.guardarConsulta(examen);
               // Registrar vista en Analytics
               _analyticsService.logVistaDetalleExamen(
                 examen.id!,
@@ -228,6 +231,7 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
                     ),
                   );
                 } else {
+                  _historyService.guardarConsulta(examen);
                   _carritoService.agregarExamen(examen);
                   // Registrar en Analytics
                   _analyticsService.logAgregarAlCarrito(

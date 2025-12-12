@@ -8,6 +8,7 @@ import 'pantalla_carrito.dart'; // Importar la pantalla de carrito
 import '../models/examen.dart';
 import 'pantalla_admin.dart';
 import 'pantalla_manual.dart';
+import 'pantalla_estadisticas.dart';
 
 class PantallaPrincipal extends StatefulWidget {
   const PantallaPrincipal({super.key});
@@ -26,9 +27,9 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
     const PantallaBusqueda(),
     PantallaManual(),
 
-    const PantallaPlaceholder(
-      title: 'Estadísticas de Uso',
-      icon: Icons.bar_chart_outlined,
+    const PantallaEstadisticas(
+      // title: 'Estadísticas de Uso',
+      // icon: Icons.bar_chart_outlined,
     ),
   ];
 

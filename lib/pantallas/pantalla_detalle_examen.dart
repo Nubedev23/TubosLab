@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/app_styles.dart';
 import '../services/firestore_service.dart';
 import '../models/examen.dart';
+import '../services/history_service.dart';
 
 class PantallaDetalleExamen extends StatelessWidget {
   const PantallaDetalleExamen({super.key});
@@ -96,6 +97,7 @@ class PantallaDetalleExamen extends StatelessWidget {
     // 1. Obtener el ID del documento (ej: 'glicemia') que se pasa por la navegación
     final examenId = ModalRoute.of(context)!.settings.arguments as String;
     final FirestoreService firestoreService = FirestoreService();
+    final HistoryService historyService = HistoryService();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -122,6 +124,10 @@ class PantallaDetalleExamen extends StatelessWidget {
           }
 
           final examen = snapshot.data!;
+          // Guardar en el historial de consultas
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            historyService.guardarConsulta(examen);
+          });
 
           // 3. Mostrar los detalles una vez que el objeto Examen esté disponible
           return SingleChildScrollView(
