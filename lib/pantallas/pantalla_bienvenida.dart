@@ -47,7 +47,8 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> {
                 style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
               ),
               const Text(
-                'Optimiza la toma de muestras de sangre',
+                'Optimizando la recolección de muestras de laboratorio',
+                textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const Spacer(flex: 1),

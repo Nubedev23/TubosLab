@@ -15,10 +15,12 @@ import 'pantallas/pantalla_carrito.dart';
 import 'pantallas/pantalla_gestion_manual.dart';
 import 'pantallas/pantalla_login_clinico.dart';
 import 'services/analytics_service.dart';
+import 'services/cache_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await CacheService().initalize();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const TubosApp());
 }

@@ -26,8 +26,42 @@ class _PantallaEstadisticasState extends State<PantallaEstadisticas> {
   @override
   void initState() {
     super.initState();
-    _cargarDatos();
+    _verificarUsuario();
     _registrarVistaEstadisticas();
+  }
+
+  /// CORRECCIÓN: Verificar correctamente si el usuario está logueado
+  Future<void> _verificarUsuario() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final userId = _authService.getCurrentUserId();
+
+      // DEBUG: Ver qué userId tenemos
+      debugPrint('Usuario ID: $userId');
+      debugPrint('Es anónimo (string): ${userId == 'anonimo'}');
+
+      //  Verificación usando el método de AuthService para detectar anónimos
+      final isLoggedIn = !_authService.isAnonymous();
+
+      debugPrint('Está logueado: $isLoggedIn');
+
+      setState(() {
+        _isLoggedIn = isLoggedIn;
+      });
+
+      // Solo cargar datos si está logueado
+      if (isLoggedIn) {
+        await _cargarDatos();
+      }
+    } catch (e) {
+      debugPrint('Error al verificar usuario: $e');
+      setState(() {
+        _isLoggedIn = false;
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _registrarVistaEstadisticas() async {
@@ -38,18 +72,12 @@ class _PantallaEstadisticasState extends State<PantallaEstadisticas> {
   }
 
   Future<void> _cargarDatos() async {
-    setState(() => _isLoading = true);
-
     try {
-      // Verificar si el usuario está logueado
-      final userId = _authService.getCurrentUserId();
-      _isLoggedIn = userId != null && userId != 'anonimo';
+      // Cargar historial y estadísticas solo si está logueado
+      final historial = await _historyService.obtenerHistorialUsuario();
+      final stats = await _historyService.obtenerEstadisticas();
 
-      if (_isLoggedIn) {
-        // Cargar historial y estadísticas solo si está logueado
-        final historial = await _historyService.obtenerHistorialUsuario();
-        final stats = await _historyService.obtenerEstadisticas();
-
+      if (mounted) {
         setState(() {
           _historial = historial;
           _estadisticas = stats;
@@ -57,8 +85,6 @@ class _PantallaEstadisticasState extends State<PantallaEstadisticas> {
       }
     } catch (e) {
       debugPrint('Error al cargar datos de estadísticas: $e');
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 
@@ -100,20 +126,25 @@ class _PantallaEstadisticasState extends State<PantallaEstadisticas> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
+    // PRIMERO: Verificar si está logueado (sin importar si tiene datos o no)
     if (!_isLoggedIn) {
       return _buildLoginRequired();
     }
 
+    // SEGUNDO: Si está cargando, mostrar indicador
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // TERCERO: Si está logueado pero no hay historial, mostrar estado vacío
     if (_historial.isEmpty) {
       return _buildEmptyState();
     }
 
     return RefreshIndicator(
-      onRefresh: _cargarDatos,
+      onRefresh: () async {
+        await _verificarUsuario();
+      },
       child: SingleChildScrollView(
         padding: AppStyles.padding,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -232,73 +263,44 @@ class _PantallaEstadisticasState extends State<PantallaEstadisticas> {
   }
 
   Widget _buildSummaryCards() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            'Total consultas',
-            _historial.length.toString(),
-            Icons.search,
-            AppStyles.primaryDark,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Exámenes',
-            _estadisticas.length.toString(),
-            Icons.science_outlined,
-            AppStyles.secondaryColor,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppStyles.borderRadius),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: color,
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 300),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppStyles.borderRadius),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1A000000),
+              blurRadius: 8,
+              offset: Offset(0, 2),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.search, color: AppStyles.primaryDark, size: 48),
+            const SizedBox(height: 16),
+            Text(
+              _historial.length.toString(),
+              style: const TextStyle(
+                fontSize: 48,
+                fontWeight: FontWeight.bold,
+                color: AppStyles.primaryDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Total de consultas',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

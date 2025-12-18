@@ -32,6 +32,41 @@ class _PantallaVisorPdfState extends State<PantallaVisorPdf> {
     _downloadPdf();
   }
 
+  //funcion para descargar el pdf a la carpeta de descargas
+  Future<void> _savePdfToDownloads() async {
+    if (localPath == null) return;
+
+    try {
+      final downloadsDir = await getDownloadsDirectory();
+      if (downloadsDir == null) {
+        throw Exception('No se pudo acceder a la carpeta de descargas.');
+      }
+
+      final fileName =
+          'Manual_TubosLab${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final savedFile = File('${downloadsDir.path}/$fileName');
+
+      // Copiar el archivo descargado a la carpeta de descargas
+      final sourceFile = File(localPath!);
+      await sourceFile.copy(savedFile.path);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('PDF guardado en: ${savedFile.path}'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al guardar PDF: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+
   // Función para descargar el PDF desde la URL
   Future<void> _downloadPdf() async {
     try {
@@ -110,6 +145,12 @@ class _PantallaVisorPdfState extends State<PantallaVisorPdf> {
               onPressed: () {
                 _pdfViewController!.setPage(0);
               },
+            ),
+          if (localPath != null && !isLoading)
+            IconButton(
+              icon: const Icon(Icons.download),
+              tooltip: 'Descargar PDF',
+              onPressed: _savePdfToDownloads,
             ),
         ],
       ),

@@ -17,10 +17,18 @@ class HistoryService {
   static const int _maxHistoryItems = 10;
 
   /// Guarda una consulta en el historial
+  /// CORRECCIÓN: Solo guarda si NO es usuario anónimo
   Future<void> guardarConsulta(Examen examen) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      // Si es usuario anónimo, no guardar en el historial
+      if (_authService.isAnonymous()) {
+        debugPrint('Historial: Usuario anónimo, no se guarda consulta');
+        return;
+      }
+
       final userId = _authService.getCurrentUserId();
+
+      final prefs = await SharedPreferences.getInstance();
 
       // Crear el registro de consulta
       final queryHistory = QueryHistory(
@@ -80,13 +88,16 @@ class HistoryService {
   }
 
   /// Obtiene el historial filtrado por usuario actual
+  /// Devuelve lista vacía si es usuario anónimo
   Future<List<QueryHistory>> obtenerHistorialUsuario() async {
     try {
-      final userId = _authService.getCurrentUserId();
-      if (userId == null || userId == 'anonimo') {
-        // Si es usuario anónimo, devolver lista vacía
+      //  Si es usuario anónimo, devolver lista vacía
+      if (_authService.isAnonymous()) {
+        debugPrint('Historial: Usuario anónimo, no hay historial disponible');
         return [];
       }
+
+      final userId = _authService.getCurrentUserId();
 
       final historialCompleto = await obtenerHistorial();
 
@@ -102,8 +113,15 @@ class HistoryService {
   }
 
   /// Obtiene estadísticas de exámenes más consultados
+  /// Devuelve mapa vacío si es usuario anónimo
   Future<Map<String, int>> obtenerEstadisticas() async {
     try {
+      // Si es usuario anónimo, devolver mapa vacío
+      if (_authService.isAnonymous()) {
+        debugPrint('Estadísticas: Usuario anónimo, no hay estadísticas');
+        return {};
+      }
+
       final historial = await obtenerHistorialUsuario();
       final Map<String, int> stats = {};
 
@@ -122,13 +140,15 @@ class HistoryService {
   Future<void> limpiarHistorialUsuario() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final userId = _authService.getCurrentUserId();
 
-      if (userId == null || userId == 'anonimo') {
-        // Si es anónimo, limpiar todo
+      // Si es anónimo, limpiar todo
+      if (_authService.isAnonymous()) {
         await prefs.remove(_historyKey);
+        debugPrint('Historial: Limpiado (usuario anónimo)');
         return;
       }
+
+      final userId = _authService.getCurrentUserId();
 
       // Obtener historial completo
       final historialCompleto = await obtenerHistorial();

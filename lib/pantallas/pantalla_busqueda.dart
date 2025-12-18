@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../utils/app_styles.dart';
 import '../services/firestore_service.dart';
-import '../services/analytics_service.dart'; // NUEVO
-import '../services/cache_service.dart'; // NUEVO
+import '../services/analytics_service.dart';
+import '../services/cache_service.dart';
 import '../models/examen.dart';
 import 'pantalla_detalle_examen.dart';
 import '../services/carrito_service.dart';
@@ -21,19 +21,20 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
   final _searchController = TextEditingController();
   final FirestoreService _firestoreService = FirestoreService();
   final CarritoService _carritoService = CarritoService();
-  final AnalyticsService _analyticsService = AnalyticsService(); // NUEVO
-  final CacheService _cacheService = CacheService(); // NUEVO
+  final AnalyticsService _analyticsService = AnalyticsService();
+  final CacheService _cacheService = CacheService();
   final HistoryService _historyService = HistoryService();
 
   String _currentQuery = '';
-  List<String> _busquedasRecientes = []; // NUEVO
-  bool _mostrarBusquedasRecientes = false; // NUEVO
+  String? areaSeleccionada; // Variable para el área seleccionada
+  List<String> _busquedasRecientes = [];
+  bool _mostrarBusquedasRecientes = false;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
-    _cargarBusquedasRecientes(); // NUEVO
+    _cargarBusquedasRecientes();
   }
 
   @override
@@ -43,7 +44,6 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
     super.dispose();
   }
 
-  // NUEVO: Cargar búsquedas recientes
   Future<void> _cargarBusquedasRecientes() async {
     final busquedas = await _cacheService.obtenerBusquedasRecientes();
     if (mounted) {
@@ -61,16 +61,14 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
         _mostrarBusquedasRecientes = newQuery.isEmpty;
       });
 
-      // Registrar búsqueda en Analytics si tiene más de 2 caracteres
       if (newQuery.length > 2) {
         _analyticsService.logBusquedaExamen(newQuery);
         _cacheService.guardarBusquedaReciente(newQuery);
-        _cargarBusquedasRecientes(); // Recargar la lista
+        _cargarBusquedasRecientes();
       }
     }
   }
 
-  // NUEVO: Widget de búsquedas recientes
   Widget _buildBusquedasRecientes() {
     if (_busquedasRecientes.isEmpty) {
       return const Center(
@@ -152,7 +150,6 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
           child: ListTile(
             onTap: () {
               _historyService.guardarConsulta(examen);
-              // Registrar vista en Analytics
               _analyticsService.logVistaDetalleExamen(
                 examen.id!,
                 examen.nombre,
@@ -219,7 +216,6 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
               onPressed: () {
                 if (estaEnCarrito) {
                   _carritoService.removerExamen(examen.id!);
-                  // Registrar en Analytics
                   _analyticsService.logRemoverDelCarrito(
                     examen.id!,
                     examen.nombre,
@@ -233,7 +229,6 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
                 } else {
                   _historyService.guardarConsulta(examen);
                   _carritoService.agregarExamen(examen);
-                  // Registrar en Analytics
                   _analyticsService.logAgregarAlCarrito(
                     examen.id!,
                     examen.nombre,
@@ -298,16 +293,63 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
           ),
           const SizedBox(height: 10),
 
+          // Dropdown para filtrar por área
+          DropdownButton<String>(
+            hint: const Text('Filtrar por área'),
+            value: areaSeleccionada,
+            isExpanded: true,
+            items:
+                [
+                  'Hematología',
+                  'Bioquímica',
+                  'Inmunología',
+                  'Microbiología',
+                  'Coagulación',
+                  'Hormonas',
+                  'Virología',
+                ].map((area) {
+                  return DropdownMenuItem(value: area, child: Text(area));
+                }).toList(),
+            onChanged: (value) {
+              setState(() {
+                areaSeleccionada = value;
+                // Al seleccionar área, ocultar búsquedas recientes
+                _mostrarBusquedasRecientes = false;
+              });
+            },
+          ),
+
+          // Botón para limpiar filtro de área
+          if (areaSeleccionada != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    areaSeleccionada = null;
+                  });
+                },
+                icon: const Icon(Icons.clear, size: 16),
+                label: const Text('Limpiar filtro'),
+              ),
+            ),
+
           // Mostrar búsquedas recientes o resultados
           Expanded(
-            child: _mostrarBusquedasRecientes && _currentQuery.isEmpty
+            child:
+                _mostrarBusquedasRecientes &&
+                    _currentQuery.isEmpty &&
+                    areaSeleccionada == null
                 ? _buildBusquedasRecientes()
                 : StreamBuilder<List<Examen>>(
+                    // CORRECCIÓN: Pasar el área seleccionada al stream
                     stream: _firestoreService.streamExamenesBusqueda(
                       _currentQuery,
+                      areaSeleccionada, // Pasar el área como segundo parámetro
                     ),
                     builder: (context, snapshot) {
-                      if (_currentQuery.isEmpty) {
+                      // Mostrar mensaje solo si NO hay área seleccionada Y NO hay búsqueda
+                      if (_currentQuery.isEmpty && areaSeleccionada == null) {
                         return Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -319,7 +361,8 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'Ingresa un término para buscar',
+                                'Ingresa un término para buscar o selecciona un área',
+                                textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: Colors.grey[600],
                                   fontSize: 16,
@@ -359,11 +402,25 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
                       }
 
                       if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        // Mensaje diferente según si hay área seleccionada o búsqueda
+                        String mensaje;
+                        if (areaSeleccionada != null && _currentQuery.isEmpty) {
+                          mensaje =
+                              'No hay exámenes en el área "$areaSeleccionada".';
+                        } else if (areaSeleccionada != null &&
+                            _currentQuery.isNotEmpty) {
+                          mensaje =
+                              'No se encontró "${_searchController.text.trim()}" en el área "$areaSeleccionada".';
+                        } else {
+                          mensaje =
+                              'No se encontró el examen "${_searchController.text.trim()}" por lo que se sugiere llamar al Laboratorio directamente.';
+                        }
+
                         return Center(
                           child: Padding(
                             padding: const EdgeInsets.all(20.0),
                             child: Text(
-                              'No se encontró el examen "${_searchController.text.trim()}" por lo que se sugiere llamar al Laboratorio directamente.',
+                              mensaje,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Color.fromARGB(255, 159, 9, 9),

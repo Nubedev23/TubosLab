@@ -79,12 +79,26 @@ class AuthService {
   // Método para obtener el ID de usuario actual (puede ser null).
   String? getCurrentUserId() => _auth.currentUser?.uid;
 
+  // NUEVO: Método para detectar si el usuario actual es anónimo
+  bool isAnonymous() {
+    final user = _auth.currentUser;
+    if (user == null) return true; // Sin usuario = considerarlo anónimo
+    return user.isAnonymous; // Firebase tiene esta propiedad nativa
+  }
+
+  // NUEVO: Método para verificar si hay un usuario autenticado (no anónimo)
+  bool isAuthenticated() {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    return !user.isAnonymous; // TRUE si NO es anónimo
+  }
+
   void dispose() {
     _userRole.close();
   }
 
   // ------------------------------------------------------------------
-  // NUEVO: LOGIN CON EMAIL/PASSWORD
+  // LOGIN CON EMAIL/PASSWORD
   // ------------------------------------------------------------------
 
   // Método para iniciar sesión con Correo y Contraseña

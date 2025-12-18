@@ -38,7 +38,6 @@ class FirestoreService {
         .orderBy('nombre')
         .snapshots()
         .asyncMap((snapshot) async {
-          // CORREGIDO: Orden de parámetros (map, id)
           final examenes = snapshot.docs
               .map((doc) => Examen.fromMap(doc.data(), doc.id))
               .toList();
@@ -68,7 +67,6 @@ class FirestoreService {
           .orderBy('nombre')
           .get();
 
-      // CORREGIDO: Orden de parámetros (map, id)
       final examenes = snapshot.docs
           .map((doc) => Examen.fromMap(doc.data(), doc.id))
           .toList();
@@ -91,36 +89,96 @@ class FirestoreService {
   }
 
   /// ----------------------------------------------------------
-  /// STREAM DE BÚSQUEDA (CON CACHÉ LOCAL)
+  /// STREAM DE BÚSQUEDA (CON CACHÉ LOCAL Y FILTRO POR ÁREA)
   /// ----------------------------------------------------------
-  Stream<List<Examen>> streamExamenesBusqueda(String query) async* {
+  Stream<List<Examen>> streamExamenesBusqueda(
+    String query,
+    String? area, //  Agregamos el parámetro de área
+  ) async* {
     final normalized = normalizar(query);
 
-    if (normalized.isEmpty) {
+    // ✅ Si no hay búsqueda ni área, mostrar todos los exámenes
+    if (normalized.isEmpty && area == null) {
       yield* streamExamenes();
       return;
     }
 
     try {
+      // Si hay área pero NO hay búsqueda, traer todos los exámenes de esa área
+      if (normalized.isEmpty && area != null) {
+        yield* _db
+            .collection(_examenesCollection)
+            .orderBy('nombre')
+            .snapshots()
+            .map((snapshot) {
+              var examenes = snapshot.docs
+                  .map((doc) => Examen.fromMap(doc.data(), doc.id))
+                  .toList();
+
+              // Filtrar solo por área
+              examenes = examenes.where((examen) {
+                final areaExamen = examen.area?.toLowerCase().trim() ?? '';
+                final areaFiltro = area.toLowerCase().trim();
+                return areaExamen == areaFiltro;
+              }).toList();
+
+              return examenes;
+            });
+        return;
+      }
+
+      //  Si hay búsqueda (con o sin área)
       yield* _db
           .collection(_examenesCollection)
           .where('nombre_normalizado', isGreaterThanOrEqualTo: normalized)
           .where('nombre_normalizado', isLessThan: '${normalized}\uf8ff')
           .snapshots()
           .map((snapshot) {
-            // CORREGIDO: Orden de parámetros (map, id)
-            return snapshot.docs
+            var examenes = snapshot.docs
                 .map((doc) => Examen.fromMap(doc.data(), doc.id))
                 .toList();
+
+            // Filtro por texto (si hay búsqueda)
+            if (normalized.isNotEmpty) {
+              examenes = examenes.where((examen) {
+                return examen.nombre_normalizado.contains(normalized);
+              }).toList();
+            }
+
+            // Filtro por área (si se seleccionó un área)
+            if (area != null && area.isNotEmpty) {
+              examenes = examenes.where((examen) {
+                // Comparación case-insensitive
+                final areaExamen = examen.area?.toLowerCase().trim() ?? '';
+                final areaFiltro = area.toLowerCase().trim();
+                return areaExamen == areaFiltro;
+              }).toList();
+            }
+
+            return examenes;
           });
     } catch (e) {
       debugPrint('Error en búsqueda, usando caché: $e');
 
       final cachedExamenes = await _cacheService.obtenerExamenes();
       if (cachedExamenes != null) {
-        final resultados = cachedExamenes.where((examen) {
-          return examen.nombre_normalizado.contains(normalized);
-        }).toList();
+        var resultados = cachedExamenes;
+
+        // Aplicar filtro de texto en caché
+        if (normalized.isNotEmpty) {
+          resultados = resultados
+              .where((e) => e.nombre_normalizado.contains(normalized))
+              .toList();
+        }
+
+        // Aplicar filtro de área en caché
+        if (area != null && area.isNotEmpty) {
+          resultados = resultados.where((e) {
+            final areaExamen = e.area?.toLowerCase().trim() ?? '';
+            final areaFiltro = area.toLowerCase().trim();
+            return areaExamen == areaFiltro;
+          }).toList();
+        }
 
         yield resultados;
       } else {
@@ -136,7 +194,6 @@ class FirestoreService {
     try {
       final doc = await _db.collection(_examenesCollection).doc(id).get();
       if (doc.exists) {
-        // ✅ CORREGIDO: Orden de parámetros (map, id)
         return Examen.fromMap(doc.data()!, doc.id);
       }
       return null;
@@ -201,7 +258,6 @@ class FirestoreService {
           .orderBy('nombre')
           .get();
 
-      // CORREGIDO: Orden de parámetros (map, id)
       final examenes = snapshot.docs
           .map((doc) => Examen.fromMap(doc.data(), doc.id))
           .toList();
@@ -225,7 +281,6 @@ class FirestoreService {
         .where('nombre_normalizado', isLessThan: '${normalized}z')
         .get();
 
-    // CORREGIDO: Orden de parámetros (map, id)
     return snapshot.docs
         .map((doc) => Examen.fromMap(doc.data(), doc.id))
         .toList();
