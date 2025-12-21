@@ -173,4 +173,11 @@ class AnalyticsService {
     await _analytics.logEvent(name: eventName, parameters: parameters);
     debugPrint('Analytics: Evento personalizado - $eventName');
   }
+
+  /// Obtener estadísticas desde Firebase Analytics
+  Future<Map<String, dynamic>> getAnalyticsStats() async {
+    return {
+      'nota': 'Ver Firebase Console → Analytics para métricas detalladas',
+    };
+  }
 }

@@ -15,6 +15,7 @@ class FirestoreService {
 
   final String _examenesCollection = 'examenes';
   final String _usersCollection = 'users';
+  final String _queriesCollection = 'exam_queries';
 
   String normalizar(String texto) {
     const acentos = 'áéíóúÁÉÍÓÚ';
@@ -27,6 +28,14 @@ class FirestoreService {
 
   String getCurrentUserId() {
     return _auth.currentUser?.uid ?? 'anonimo';
+  }
+
+  User? get currentUser => _auth.currentUser;
+
+  // control de rol (admin)
+  Future<bool> esAdmin(String uid) async {
+    final doc = await _db.collection(_usersCollection).doc(uid).get();
+    return doc.exists && doc.data()?['role'] == 'admin';
   }
 
   /// ----------------------------------------------------------
@@ -93,18 +102,16 @@ class FirestoreService {
   /// ----------------------------------------------------------
   Stream<List<Examen>> streamExamenesBusqueda(
     String query,
-    String? area, //  Agregamos el parámetro de área
+    String? area,
   ) async* {
     final normalized = normalizar(query);
 
-    // ✅ Si no hay búsqueda ni área, mostrar todos los exámenes
     if (normalized.isEmpty && area == null) {
       yield* streamExamenes();
       return;
     }
 
     try {
-      // Si hay área pero NO hay búsqueda, traer todos los exámenes de esa área
       if (normalized.isEmpty && area != null) {
         yield* _db
             .collection(_examenesCollection)
@@ -115,7 +122,6 @@ class FirestoreService {
                   .map((doc) => Examen.fromMap(doc.data(), doc.id))
                   .toList();
 
-              // Filtrar solo por área
               examenes = examenes.where((examen) {
                 final areaExamen = examen.area?.toLowerCase().trim() ?? '';
                 final areaFiltro = area.toLowerCase().trim();
@@ -127,7 +133,6 @@ class FirestoreService {
         return;
       }
 
-      //  Si hay búsqueda (con o sin área)
       yield* _db
           .collection(_examenesCollection)
           .where('nombre_normalizado', isGreaterThanOrEqualTo: normalized)
@@ -138,17 +143,14 @@ class FirestoreService {
                 .map((doc) => Examen.fromMap(doc.data(), doc.id))
                 .toList();
 
-            // Filtro por texto (si hay búsqueda)
             if (normalized.isNotEmpty) {
               examenes = examenes.where((examen) {
                 return examen.nombre_normalizado.contains(normalized);
               }).toList();
             }
 
-            // Filtro por área (si se seleccionó un área)
             if (area != null && area.isNotEmpty) {
               examenes = examenes.where((examen) {
-                // Comparación case-insensitive
                 final areaExamen = examen.area?.toLowerCase().trim() ?? '';
                 final areaFiltro = area.toLowerCase().trim();
                 return areaExamen == areaFiltro;
@@ -164,14 +166,12 @@ class FirestoreService {
       if (cachedExamenes != null) {
         var resultados = cachedExamenes;
 
-        // Aplicar filtro de texto en caché
         if (normalized.isNotEmpty) {
           resultados = resultados
               .where((e) => e.nombre_normalizado.contains(normalized))
               .toList();
         }
 
-        // Aplicar filtro de área en caché
         if (area != null && area.isNotEmpty) {
           resultados = resultados.where((e) {
             final areaExamen = e.area?.toLowerCase().trim() ?? '';
@@ -312,5 +312,99 @@ class FirestoreService {
       }
       return null;
     }
+  }
+
+  /// ----------------------------------------------------------
+  /// ESTADÍSTICAS - REGISTRAR CONSULTA DE EXAMEN
+  /// ----------------------------------------------------------
+  Future<void> registrarConsultaExamen(String examenNombre) async {
+    try {
+      await _db.collection(_queriesCollection).add({
+        'examenNombre': examenNombre,
+        'timestamp': FieldValue.serverTimestamp(),
+        'userId': _auth.currentUser?.uid ?? 'anonimo',
+      });
+    } catch (e) {
+      debugPrint('Error al registrar consulta: $e');
+    }
+  }
+
+  /// ----------------------------------------------------------
+  /// ESTADÍSTICAS - FRECUENCIA DE CONSULTAS
+  /// ----------------------------------------------------------
+  Stream<Map<String, int>> streamFrecuenciaConsultas() {
+    return _db.collection(_queriesCollection).snapshots().map((snapshot) {
+      Map<String, int> frecuencias = {};
+      for (var doc in snapshot.docs) {
+        String nombre = doc['examenNombre'] ?? 'Desconocido';
+        frecuencias[nombre] = (frecuencias[nombre] ?? 0) + 1;
+      }
+      return frecuencias;
+    });
+  }
+
+  /// ----------------------------------------------------------
+  /// ESTADÍSTICAS - TOTAL DE USUARIOS
+  /// ----------------------------------------------------------
+  Stream<int> streamTotalUsuarios() {
+    return _db.collection(_usersCollection).snapshots().map((snapshot) {
+      return snapshot.docs.length;
+    });
+  }
+
+  /// ----------------------------------------------------------
+  /// ESTADÍSTICAS - USUARIOS ACTIVOS ÚLTIMOS 7 DÍAS
+  /// ----------------------------------------------------------
+  Stream<int> streamUsuariosActivosUltimos7Dias() {
+    final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+
+    return _db.collection(_usersCollection).snapshots().map((snapshot) {
+      int activos = 0;
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final lastActive = data['last_active'] as Timestamp?;
+
+        if (lastActive != null) {
+          final lastActiveDate = lastActive.toDate();
+          if (lastActiveDate.isAfter(sevenDaysAgo)) {
+            activos++;
+          }
+        }
+      }
+      return activos;
+    });
+  }
+
+  /// ----------------------------------------------------------
+  /// ESTADÍSTICAS - TOTAL DE EXÁMENES
+  /// ----------------------------------------------------------
+  Stream<int> streamTotalExamenes() {
+    return _db.collection(_examenesCollection).snapshots().map((snapshot) {
+      return snapshot.docs.length;
+    });
+  }
+
+  /// ----------------------------------------------------------
+  /// ESTADÍSTICAS - EXÁMENES POR ÁREA
+  /// ----------------------------------------------------------
+  Stream<Map<String, int>> streamExamenesPorArea() {
+    return _db.collection(_examenesCollection).snapshots().map((snapshot) {
+      Map<String, int> areaCount = {};
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final area = data['area'] as String? ?? 'Sin área';
+        areaCount[area] = (areaCount[area] ?? 0) + 1;
+      }
+      return areaCount;
+    });
+  }
+
+  /// ----------------------------------------------------------
+  /// ESTADÍSTICAS - TOTAL DE CONSULTAS
+  /// ----------------------------------------------------------
+  Stream<int> streamTotalConsultas() {
+    return _db.collection(_queriesCollection).snapshots().map((snapshot) {
+      return snapshot.docs.length;
+    });
   }
 }

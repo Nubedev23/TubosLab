@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import '../utils/app_styles.dart';
 import '../services/firestore_service.dart';
@@ -24,11 +26,17 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
   final AnalyticsService _analyticsService = AnalyticsService();
   final CacheService _cacheService = CacheService();
   final HistoryService _historyService = HistoryService();
+  final FocusNode _searchFocusNode = FocusNode(); //se agregó para el overlay
+  final LayerLink _layerLink = LayerLink(); //se agregó
+  OverlayEntry? _overlayEntry; //se agregó
 
   String _currentQuery = '';
   String? areaSeleccionada; // Variable para el área seleccionada
   List<String> _busquedasRecientes = [];
   bool _mostrarBusquedasRecientes = false;
+
+  List<String> _sugerencias = [];
+  bool _mostrarSugerencias = false;
 
   @override
   void initState() {
@@ -41,7 +49,24 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _searchFocusNode.removeListener(_onFocusChanged);
+    _searchFocusNode.dispose();
+    _removeOverlay();
     super.dispose();
+  }
+
+  void _onFocusChanged() {
+    if (!_searchFocusNode.hasFocus) {
+      _removeOverlay();
+    }
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    setState(() {
+      _mostrarSugerencias = false;
+    });
   }
 
   Future<void> _cargarBusquedasRecientes() async {
@@ -65,8 +90,83 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
         _analyticsService.logBusquedaExamen(newQuery);
         _cacheService.guardarBusquedaReciente(newQuery);
         _cargarBusquedasRecientes();
+
+        _cargarSugerencias(newQuery);
+      } else {
+        _removeOverlay();
       }
+    } else if (newQuery.isEmpty) {
+      _removeOverlay();
     }
+  }
+
+  Future<void> _cargarSugerencias(String query) async {
+    if (query.length < 2) {
+      _removeOverlay();
+      return;
+    }
+    try {
+      final examenes = await _firestoreService.searchExamenes(query);
+      final sugerencias = examenes.map((e) => e.nombre).take(5).toList();
+
+      if (mounted && sugerencias.isNotEmpty && _searchFocusNode.hasFocus) {
+        setState(() {
+          _sugerencias = sugerencias;
+          _mostrarSugerencias = true;
+        });
+        _showOverlay();
+      } else {
+        _removeOverlay();
+      }
+    } catch (e) {
+      debugPrint('Error al cargar sugerencias: $e');
+      _removeOverlay();
+    }
+  }
+
+  void _showOverlay() {
+    _removeOverlay();
+
+    if (!mounted) return;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        width: MediaQuery.of(context).size.width - 32,
+        child: CompositedTransformFollower(
+          link: _layerLink,
+          showWhenUnlinked: false,
+          offset: const Offset(0, 56), // debajo del TextField
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: _sugerencias.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final sugerencia = _sugerencias[index];
+                  return ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.search, size: 18),
+                    title: Text(sugerencia),
+                    onTap: () {
+                      _searchController.text = sugerencia;
+                      _removeOverlay();
+                      _searchFocusNode.unfocus();
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context, rootOverlay: true).insert(_overlayEntry!);
   }
 
   Widget _buildBusquedasRecientes() {
@@ -255,193 +355,200 @@ class _PantallaBusquedaState extends State<PantallaBusqueda> {
   Widget build(BuildContext context) {
     return Padding(
       padding: AppStyles.padding.copyWith(top: 10, bottom: 0),
-      child: Column(
-        children: [
-          // Campo de búsqueda
-          TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Buscar examen por nombre...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _currentQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _currentQuery = '';
-                          _mostrarBusquedasRecientes = true;
-                        });
-                      },
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(25.0),
-                borderSide: BorderSide.none,
+      child: CompositedTransformTarget(
+        link: _layerLink,
+        child: Column(
+          children: [
+            TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode, //se agregó
+              decoration: InputDecoration(
+                hintText: 'Buscar examen por nombre...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _currentQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _currentQuery = '';
+                            _mostrarBusquedasRecientes = true;
+                          });
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25.0),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.grey[200],
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
               ),
-              filled: true,
-              fillColor: Colors.grey[200],
-              contentPadding: const EdgeInsets.symmetric(vertical: 0),
-            ),
-            onTap: () {
-              if (_searchController.text.isEmpty) {
-                setState(() {
-                  _mostrarBusquedasRecientes = true;
-                });
-              }
-            },
-          ),
-          const SizedBox(height: 10),
-
-          // Dropdown para filtrar por área
-          DropdownButton<String>(
-            hint: const Text('Filtrar por área'),
-            value: areaSeleccionada,
-            isExpanded: true,
-            items:
-                [
-                  'Hematología',
-                  'Bioquímica',
-                  'Inmunología',
-                  'Microbiología',
-                  'Coagulación',
-                  'Hormonas',
-                  'Virología',
-                ].map((area) {
-                  return DropdownMenuItem(value: area, child: Text(area));
-                }).toList(),
-            onChanged: (value) {
-              setState(() {
-                areaSeleccionada = value;
-                // Al seleccionar área, ocultar búsquedas recientes
-                _mostrarBusquedasRecientes = false;
-              });
-            },
-          ),
-
-          // Botón para limpiar filtro de área
-          if (areaSeleccionada != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: TextButton.icon(
-                onPressed: () {
+              onTap: () {
+                if (_searchController.text.isEmpty) {
                   setState(() {
-                    areaSeleccionada = null;
+                    _mostrarBusquedasRecientes = true;
                   });
-                },
-                icon: const Icon(Icons.clear, size: 16),
-                label: const Text('Limpiar filtro'),
-              ),
+                }
+              },
+            ),
+            const SizedBox(height: 10),
+
+            // Dropdown para filtrar por área
+            DropdownButton<String>(
+              hint: const Text('Filtrar por área'),
+              value: areaSeleccionada,
+              isExpanded: true,
+              items:
+                  [
+                    'Hematología',
+                    'Bioquímica',
+                    'Inmunología',
+                    'Microbiología',
+                    'Coagulación',
+                    'Hormonas',
+                    'Virología',
+                  ].map((area) {
+                    return DropdownMenuItem(value: area, child: Text(area));
+                  }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  areaSeleccionada = value;
+                  // Al seleccionar área, ocultar búsquedas recientes
+                  _mostrarBusquedasRecientes = false;
+                });
+              },
             ),
 
-          // Mostrar búsquedas recientes o resultados
-          Expanded(
-            child:
-                _mostrarBusquedasRecientes &&
-                    _currentQuery.isEmpty &&
-                    areaSeleccionada == null
-                ? _buildBusquedasRecientes()
-                : StreamBuilder<List<Examen>>(
-                    // CORRECCIÓN: Pasar el área seleccionada al stream
-                    stream: _firestoreService.streamExamenesBusqueda(
-                      _currentQuery,
-                      areaSeleccionada, // Pasar el área como segundo parámetro
-                    ),
-                    builder: (context, snapshot) {
-                      // Mostrar mensaje solo si NO hay área seleccionada Y NO hay búsqueda
-                      if (_currentQuery.isEmpty && areaSeleccionada == null) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.search,
-                                size: 80,
-                                color: Colors.grey[400],
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Ingresa un término para buscar o selecciona un área',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 16,
+            // Botón para limpiar filtro de área
+            if (areaSeleccionada != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      areaSeleccionada = null;
+                    });
+                  },
+                  icon: const Icon(Icons.clear, size: 16),
+                  label: const Text('Limpiar filtro'),
+                ),
+              ),
+
+            // Mostrar búsquedas recientes o resultados
+            Expanded(
+              child:
+                  _mostrarBusquedasRecientes &&
+                      _currentQuery.isEmpty &&
+                      areaSeleccionada == null
+                  ? _buildBusquedasRecientes()
+                  : StreamBuilder<List<Examen>>(
+                      // CORRECCIÓN: Pasar el área seleccionada al stream
+                      stream: _firestoreService.streamExamenesBusqueda(
+                        _currentQuery,
+                        areaSeleccionada, // Pasar el área como segundo parámetro
+                      ),
+                      builder: (context, snapshot) {
+                        // Mostrar mensaje solo si NO hay área seleccionada Y NO hay búsqueda
+                        if (_currentQuery.isEmpty && areaSeleccionada == null) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.search,
+                                  size: 80,
+                                  color: Colors.grey[400],
                                 ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      if (snapshot.hasError) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.cloud_off,
-                                size: 80,
-                                color: Colors.orange,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Sin conexión. Mostrando resultados guardados.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 16,
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Ingresa un término para buscar o selecciona un área',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 16,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        // Mensaje diferente según si hay área seleccionada o búsqueda
-                        String mensaje;
-                        if (areaSeleccionada != null && _currentQuery.isEmpty) {
-                          mensaje =
-                              'No hay exámenes en el área "$areaSeleccionada".';
-                        } else if (areaSeleccionada != null &&
-                            _currentQuery.isNotEmpty) {
-                          mensaje =
-                              'No se encontró "${_searchController.text.trim()}" en el área "$areaSeleccionada".';
-                        } else {
-                          mensaje =
-                              'No se encontró el examen "${_searchController.text.trim()}" por lo que se sugiere llamar al Laboratorio directamente.';
+                              ],
+                            ),
+                          );
                         }
 
-                        return Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20.0),
-                            child: Text(
-                              mensaje,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Color.fromARGB(255, 159, 9, 9),
-                                fontSize: 16,
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.cloud_off,
+                                  size: 80,
+                                  color: Colors.orange,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Sin conexión. Mostrando resultados guardados.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                          // Mensaje diferente según si hay área seleccionada o búsqueda
+                          String mensaje;
+                          if (areaSeleccionada != null &&
+                              _currentQuery.isEmpty) {
+                            mensaje =
+                                'No hay exámenes en el área "$areaSeleccionada".';
+                          } else if (areaSeleccionada != null &&
+                              _currentQuery.isNotEmpty) {
+                            mensaje =
+                                'No se encontró "${_searchController.text.trim()}" en el área "$areaSeleccionada".';
+                          } else {
+                            mensaje =
+                                'No se encontró el examen "${_searchController.text.trim()}" por lo que se sugiere llamar al Laboratorio directamente.';
+                          }
+
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20.0),
+                              child: Text(
+                                mensaje,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Color.fromARGB(255, 159, 9, 9),
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      }
+                          );
+                        }
 
-                      final examenes = snapshot.data!;
-                      return ListView.builder(
-                        itemCount: examenes.length,
-                        itemBuilder: (context, index) {
-                          return _buildExamenItem(examenes[index]);
-                        },
-                      );
-                    },
-                  ),
-          ),
-        ],
+                        final examenes = snapshot.data!;
+                        return ListView.builder(
+                          itemCount: examenes.length,
+                          itemBuilder: (context, index) {
+                            return _buildExamenItem(examenes[index]);
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

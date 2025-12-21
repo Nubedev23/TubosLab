@@ -13,11 +13,13 @@ class AuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // BehaviorSubject para almacenar y transmitir el rol actual del usuario.
-  // Inicia con 'user' por defecto hasta que se compruebe el rol.
   final BehaviorSubject<String> _userRole = BehaviorSubject.seeded('user');
 
   // Getter público para que los Widgets escuchen los cambios de rol.
   Stream<String> get userRoleStream => _userRole.stream;
+
+  // Getter para obtener el usuario actual
+  User? get currentUser => _auth.currentUser;
 
   // Constructor privado Singleton.
   AuthService._internal() {
@@ -29,6 +31,8 @@ class AuthService {
       } else {
         // Usuario logueado. Iniciar la obtención del rol desde Firestore.
         _listenToUserRole(user.uid);
+        // Actualizar last_active cada vez que cambia el estado de auth
+        _updateLastActive(user.uid);
       }
     });
   }
@@ -47,6 +51,18 @@ class AuthService {
         ); // Si no existe el documento o rol, es un usuario regular.
       }
     });
+  }
+
+  // Método privado para actualizar last_active
+  Future<void> _updateLastActive(String userId) async {
+    try {
+      await _firestore.collection('users').doc(userId).set({
+        'last_active': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      debugPrint('Last active actualizado para $userId');
+    } catch (e) {
+      debugPrint('Error al actualizar last_active: $e');
+    }
   }
 
   // Método para iniciar sesión de forma anónima
@@ -105,7 +121,16 @@ class AuthService {
   Future<void> signIn(String email, String password) async {
     try {
       // Intenta iniciar sesión con Firebase Auth
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Actualizar last_active inmediatamente después del login
+      if (credential.user != null) {
+        await _updateLastActive(credential.user!.uid);
+      }
+
       // Si tiene éxito, el listener de authStateChanges() actualiza el rol automáticamente.
     } on FirebaseAuthException catch (e) {
       // Lanza un error con un mensaje útil para mostrar en PantallaLoginClinico

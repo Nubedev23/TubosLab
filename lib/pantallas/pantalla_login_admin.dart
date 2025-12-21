@@ -60,12 +60,14 @@ class _PantallaLoginAdminState extends State<PantallaLoginAdmin> {
         }
       } catch (e) {
         // Manejar errores de Firebase (contraseña incorrecta, usuario no existe, etc.)
-        if (mounted) {
-          setState(() {
-            // Muestra el mensaje de error útil devuelto por _authService.signIn()
-            _errorMsg = e.toString().replaceFirst('Exception: ', '');
-          });
-        }
+        if (!mounted) return;
+        final mensaje = e.toString().replaceFirst('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error de inicio de sesión: $mensaje'),
+            backgroundColor: Colors.red,
+          ),
+        );
       } finally {
         if (mounted) {
           setState(() {
@@ -74,6 +76,19 @@ class _PantallaLoginAdminState extends State<PantallaLoginAdmin> {
         }
       }
     }
+    //       setState(() {
+    //         // Muestra el mensaje de error útil devuelto por _authService.signIn()
+    //         _errorMsg = e.toString().replaceFirst('Exception: ', '');
+    //       });
+    //     }
+    //   } finally {
+    //     if (mounted) {
+    //       setState(() {
+    //         _isLoading = false;
+    //       });
+    //     }
+    //   }
+    // }
   }
 
   @override

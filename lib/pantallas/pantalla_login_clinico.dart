@@ -50,13 +50,14 @@ class _PantallaLoginClinicoState extends State<PantallaLoginClinico> {
         }
       } catch (e) {
         // Mostrar error en caso de fallo de autenticación
-        if (mounted) {
+        if (!mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(e.toString().replaceFirst('Exception: ', '')),
               backgroundColor: Colors.red,
             ),
           );
+          return;
         }
       } finally {
         if (mounted) {

@@ -14,6 +14,7 @@ import 'pantallas/pantalla_login_admin.dart';
 import 'pantallas/pantalla_carrito.dart';
 import 'pantallas/pantalla_gestion_manual.dart';
 import 'pantallas/pantalla_login_clinico.dart';
+import 'pantallas/pantalla_estadisticas_admin.dart';
 import 'services/analytics_service.dart';
 import 'services/cache_service.dart';
 
@@ -66,12 +67,14 @@ class TubosApp extends StatelessWidget {
         },
         PantallaGestionManual.routeName: (context) =>
             const PantallaGestionManual(),
+        PantallaEstadisticasAdmin.routeName: (context) =>
+            const PantallaEstadisticasAdmin(),
         PantallaCarrito.routeName: (context) =>
             const PantallaCarrito(), // Nueva ruta para el carrito
         PantallaLoginClinico.routeName: (context) =>
             const PantallaLoginClinico(),
         // Ruta de atajo para /admin
-        '/admin': (context) => const PantallaAdmin(),
+        // '/admin': (context) => const PantallaAdmin(),
       },
     );
   }

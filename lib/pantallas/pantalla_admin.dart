@@ -5,6 +5,7 @@ import 'pantalla_gestion_examen.dart';
 import '../models/examen.dart';
 import '../services/auth_service.dart';
 import 'pantalla_gestion_manual.dart';
+import 'pantalla_estadisticas_admin.dart';
 
 class PantallaAdmin extends StatefulWidget {
   const PantallaAdmin({super.key});
@@ -20,7 +21,34 @@ class _PantallaAdminState extends State<PantallaAdmin> {
   // Obtener la instancia del servicio de autenticación para cerrar sesión
   final AuthService _authService = AuthService();
 
-  // El método de asignación de rol y el mensaje redundante han sido eliminados.
+  @override
+  void initState() {
+    super.initState();
+    _checkAdminAccess();
+  }
+
+  Future<void> _checkAdminAccess() async {
+    try {
+      final user = _authService.currentUser;
+      if (user == null) return;
+
+      final esAdmin = await _firestoreService.esAdmin(user.uid);
+      if (!esAdmin) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Acceso no autorizado.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          _authService.signOut(context);
+        }
+      }
+      // ¡BORRA LA LÍNEA DE Navigator.pushReplacement DE AQUÍ!
+    } catch (e) {
+      debugPrint('Error checking admin access: $e');
+    }
+  }
 
   // 1. Método para manejar la eliminación
   Future<void> _deleteExamen(String examenId, String examenNombre) async {
@@ -117,6 +145,15 @@ class _PantallaAdminState extends State<PantallaAdmin> {
         // No mostramos el botón de retroceso por defecto.
         automaticallyImplyLeading: false,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.bar_chart_outlined),
+            tooltip: 'Ver Estadísticas',
+            onPressed: () {
+              Navigator.of(
+                context,
+              ).pushNamed(PantallaEstadisticasAdmin.routeName);
+            },
+          ),
           // Botón para CERRAR SESIÓN (IMPORTANTE)
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.black),

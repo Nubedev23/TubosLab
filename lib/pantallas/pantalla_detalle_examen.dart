@@ -127,6 +127,7 @@ class PantallaDetalleExamen extends StatelessWidget {
           // Guardar en el historial de consultas
           WidgetsBinding.instance.addPostFrameCallback((_) {
             historyService.guardarConsulta(examen);
+            firestoreService.registrarConsultaExamen(examen.nombre);
           });
 
           // 3. Mostrar los detalles una vez que el objeto Examen esté disponible
