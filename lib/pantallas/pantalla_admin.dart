@@ -18,8 +18,10 @@ class PantallaAdmin extends StatefulWidget {
 
 class _PantallaAdminState extends State<PantallaAdmin> {
   final FirestoreService _firestoreService = FirestoreService();
-  // Obtener la instancia del servicio de autenticación para cerrar sesión
   final AuthService _authService = AuthService();
+
+  bool _isLoading = true;
+  bool _esAdmin = false;
 
   @override
   void initState() {
@@ -28,31 +30,68 @@ class _PantallaAdminState extends State<PantallaAdmin> {
   }
 
   Future<void> _checkAdminAccess() async {
+    setState(() => _isLoading = true);
+
     try {
       final user = _authService.currentUser;
-      if (user == null) return;
 
-      final esAdmin = await _firestoreService.esAdmin(user.uid);
-      if (!esAdmin) {
+      if (user == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Acceso no autorizado.'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          setState(() => _isLoading = false);
           _authService.signOut(context);
         }
+        return;
       }
-      // ¡BORRA LA LÍNEA DE Navigator.pushReplacement DE AQUÍ!
+
+      final esAdmin = await _firestoreService.esAdmin(user.uid);
+
+      if (mounted) {
+        setState(() {
+          _esAdmin = esAdmin;
+          _isLoading = false;
+        });
+
+        if (!esAdmin) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Acceso denegado. Solo administradores pueden acceder.',
+              ),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+
+          await Future.delayed(const Duration(seconds: 2));
+          if (mounted) {
+            _authService.signOut(context);
+          }
+        }
+      }
     } catch (e) {
       debugPrint('Error checking admin access: $e');
+      if (mounted) {
+        setState(() {
+          _esAdmin = false;
+          _isLoading = false;
+        });
+        _authService.signOut(context);
+      }
     }
   }
 
-  // 1. Método para manejar la eliminación
   Future<void> _deleteExamen(String examenId, String examenNombre) async {
-    // Implementación de confirmación simple (podría ser un modal más complejo)
+    // Verificar de nuevo antes de eliminar
+    if (!_esAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No tienes permisos para realizar esta acción.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -102,12 +141,8 @@ class _PantallaAdminState extends State<PantallaAdmin> {
     }
   }
 
-  // 2. Widget de item con acciones
   Widget _buildExamenItem(Examen examen) {
-    // Si el id es nulo, este ítem no debería mostrarse, pero
-    // por seguridad, si llegara a ser null, usamos un fallback.
-    // DADA LA DEFINICIÓN DE EXAMEN, examen.id es un String NO NULO.
-    final String examenId = examen.id!; // Ya es String
+    final String examenId = examen.id!;
     final String examenNombre = examen.nombre;
 
     return Card(
@@ -118,16 +153,13 @@ class _PantallaAdminState extends State<PantallaAdmin> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Botón para EDITAR (Lleva a PantallaGestionExamen)
             IconButton(
               icon: const Icon(Icons.edit, color: AppStyles.primaryDark),
               onPressed: () => _navigateToEditExamen(examenId),
             ),
-            // Botón para ELIMINAR (Llama al método de eliminación)
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
               onPressed: () {
-                // El ID ya está garantizado como String no nulo
                 _deleteExamen(examenId, examenNombre);
               },
             ),
@@ -139,11 +171,82 @@ class _PantallaAdminState extends State<PantallaAdmin> {
 
   @override
   Widget build(BuildContext context) {
+    // Mostrar loading mientras verifica
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Verificando permisos...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Si no es admin, mostrar pantalla de acceso denegado
+    if (!_esAdmin) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Acceso Denegado'),
+          backgroundColor: Colors.red,
+          foregroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Padding(
+            padding: AppStyles.padding,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.lock_outline, size: 80, color: Colors.red[300]),
+                const SizedBox(height: 20),
+                const Text(
+                  'Acceso Restringido',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Solo administradores pueden acceder a esta sección.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 30),
+                ElevatedButton.icon(
+                  onPressed: () => _authService.signOut(context),
+                  icon: const Icon(Icons.exit_to_app, color: Colors.white),
+                  label: const Text(
+                    'Cerrar Sesión',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Si ES admin, mostrar panel normal
     return Scaffold(
       appBar: AppBar(
         title: const Text('Panel de Administración'),
-        // No mostramos el botón de retroceso por defecto.
         automaticallyImplyLeading: false,
+        backgroundColor: AppStyles.primaryDark,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.bar_chart_outlined),
@@ -154,9 +257,8 @@ class _PantallaAdminState extends State<PantallaAdmin> {
               ).pushNamed(PantallaEstadisticasAdmin.routeName);
             },
           ),
-          // Botón para CERRAR SESIÓN (IMPORTANTE)
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.black),
+            icon: const Icon(Icons.logout),
             tooltip: 'Cerrar Sesión (Admin)',
             onPressed: () => _authService.signOut(context),
           ),
@@ -172,7 +274,6 @@ class _PantallaAdminState extends State<PantallaAdmin> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Botón para agregar un nuevo examen
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -234,22 +335,47 @@ class _PantallaAdminState extends State<PantallaAdmin> {
     );
   }
 
-  // Navegación para crear nuevo examen (sin ID)
   void _navigateToNewExamen() {
+    // Verificar permisos antes de navegar
+    if (!_esAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No tienes permisos para crear exámenes.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     Navigator.of(context).pushNamed(PantallaGestionExamen.routeName);
   }
 
-  // Navegación para editar examen (con ID)
-  // El parámetro ahora espera un String no nulo, que es lo que se envía desde _buildExamenItem
   void _navigateToEditExamen(String examenId) {
-    Navigator.of(context).pushNamed(
-      PantallaGestionExamen.routeName,
-      arguments: examenId, // Pasar el ID como argumento
-    );
+    // Verificar permisos antes de navegar
+    if (!_esAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No tienes permisos para editar exámenes.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    Navigator.of(
+      context,
+    ).pushNamed(PantallaGestionExamen.routeName, arguments: examenId);
   }
 
   void _navigateToGestionManual() {
-    // Utilizamos la ruta que definiste en main.dart
+    // Verificar permisos antes de navegar
+    if (!_esAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No tienes permisos para configurar el manual.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     Navigator.of(context).pushNamed(PantallaGestionManual.routeName);
   }
 }

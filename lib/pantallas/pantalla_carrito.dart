@@ -30,19 +30,42 @@ class PantallaCarrito extends StatelessWidget {
                 icon: const Icon(Icons.delete_sweep_outlined),
                 tooltip: 'Limpiar Carrito',
                 onPressed: () {
-                  // Usamos un modal o Snackbar para confirmar antes de limpiar
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                        '¿Estás seguro de limpiar el carrito?',
-                      ),
-                      action: SnackBarAction(
-                        label: 'SÍ',
-                        textColor: Colors.redAccent,
-                        onPressed: carritoService.limpiarCarrito,
-                      ),
-                      duration: const Duration(seconds: 3),
-                    ),
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext dialogContext) {
+                      return AlertDialog(
+                        title: const Text('Limpiar Carrito'),
+                        content: const Text(
+                          '¿Estás seguro de que deseas eliminar todos los exámenes del carrito?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            child: const Text('Cancelar'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              carritoService.limpiarCarrito();
+                              Navigator.of(dialogContext).pop();
+
+                              // SOLUCIÓN: Verificar mounted antes de mostrar SnackBar
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Carrito limpiado'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              }
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                            child: const Text('Limpiar'),
+                          ),
+                        ],
+                      );
+                    },
                   );
                 },
               );
@@ -131,8 +154,25 @@ class PantallaCarrito extends StatelessWidget {
                             Icons.remove_circle,
                             color: Colors.red,
                           ),
-                          onPressed: () =>
-                              carritoService.removerExamen(examen.id!),
+                          onPressed: () {
+                            // SOLUCIÓN: Guardar el nombre antes de eliminar
+                            final nombreExamen = examen.nombre;
+                            final examenId = examen.id!;
+
+                            carritoService.removerExamen(examenId);
+
+                            // SOLUCIÓN: Verificar mounted antes de mostrar SnackBar
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    '$nombreExamen removido del carrito',
+                                  ),
+                                  duration: const Duration(seconds: 1),
+                                ),
+                              );
+                            }
+                          },
                           tooltip: 'Quitar del carrito',
                         ),
                       ),
