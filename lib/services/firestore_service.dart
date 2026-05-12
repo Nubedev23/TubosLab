@@ -17,30 +17,32 @@ class FirestoreService {
   final String _usersCollection = 'users';
   final String _queriesCollection = 'exam_queries';
 
-  String normalizar(String texto) {
-    const acentos = 'áéíóúÁÉÍÓÚ';
-    const sinAcentos = 'aeiouaeiou';
-    for (int i = 0; i < acentos.length; i++) {
-      texto = texto.replaceAll(acentos[i], sinAcentos[i]);
-    }
-    return texto.toLowerCase().trim();
+String normalizar(String texto) {
+  const mapa = {
+    'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
+    'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
+    'ñ': 'n', 'Ñ': 'N',
+  };
+
+  final buffer = StringBuffer();
+
+  for (int i = 0; i < texto.length; i++) {
+    final char = texto[i];
+    buffer.write(mapa[char] ?? char);
   }
 
-  String getCurrentUserId() {
-    return _auth.currentUser?.uid ?? 'anonimo';
-  }
+  return buffer.toString().toLowerCase().trim();
+}
 
+  String getCurrentUserId() => _auth.currentUser?.uid ?? 'anonimo';
   User? get currentUser => _auth.currentUser;
 
-  // control de rol (admin)
   Future<bool> esAdmin(String uid) async {
     final doc = await _db.collection(_usersCollection).doc(uid).get();
     return doc.exists && doc.data()?['role'] == 'admin';
   }
 
-  /// ----------------------------------------------------------
-  /// STREAM DE TODOS LOS EXÁMENES (CON CACHÉ)
-  /// ----------------------------------------------------------
+  // ── Stream principal de todos los exámenes ───────────────────────
   Stream<List<Examen>> streamExamenes() {
     return _db
         .collection(_examenesCollection)
@@ -50,160 +52,125 @@ class FirestoreService {
           final examenes = snapshot.docs
               .map((doc) => Examen.fromMap(doc.data(), doc.id))
               .toList();
-
           await _cacheService.guardarExamenes(examenes);
-
           return examenes;
         })
         .handleError((error) async {
-          debugPrint('Error en stream, intentando caché: $error');
-          final cachedExamenes = await _cacheService.obtenerExamenes();
-          if (cachedExamenes != null && cachedExamenes.isNotEmpty) {
-            debugPrint('Usando ${cachedExamenes.length} exámenes del caché');
-            return cachedExamenes;
-          }
+          debugPrint('Error en streamExamenes, usando caché: $error');
+          final cached = await _cacheService.obtenerExamenes();
+          if (cached != null && cached.isNotEmpty) return cached;
           throw error;
         });
   }
 
-  /// ----------------------------------------------------------
-  /// OBTENER EXÁMENES CON CACHÉ
-  /// ----------------------------------------------------------
-  Future<List<Examen>> getExamenesConCache() async {
-    try {
-      final snapshot = await _db
-          .collection(_examenesCollection)
-          .orderBy('nombre')
-          .get();
-
-      final examenes = snapshot.docs
-          .map((doc) => Examen.fromMap(doc.data(), doc.id))
-          .toList();
-
-      await _cacheService.guardarExamenes(examenes);
-
-      debugPrint('Obtenidos ${examenes.length} exámenes del servidor');
-      return examenes;
-    } catch (e) {
-      debugPrint('Error al obtener del servidor: $e');
-
-      final cachedExamenes = await _cacheService.obtenerExamenes();
-      if (cachedExamenes != null && cachedExamenes.isNotEmpty) {
-        debugPrint('Usando ${cachedExamenes.length} exámenes del caché');
-        return cachedExamenes;
-      }
-
-      throw Exception('No hay conexión y no hay datos en caché');
-    }
-  }
-
-  /// ----------------------------------------------------------
-  /// STREAM DE BÚSQUEDA (CON CACHÉ LOCAL Y FILTRO POR ÁREA)
-  /// ----------------------------------------------------------
+  // ── Stream de búsqueda con filtros ───────────────────────────────
   Stream<List<Examen>> streamExamenesBusqueda(
     String query,
-    String? area,
-  ) async* {
+    String? area, {
+    String? filtroTipo,
+    bool soloUrgencia = false,
+  }) {
     final normalized = normalizar(query);
+    final bool sinTexto = normalized.isEmpty;
+    final bool sinArea = area == null || area.isEmpty;
+    final bool sinTipo = filtroTipo == null;
+    final bool sinFiltros = sinTexto && sinArea && sinTipo && !soloUrgencia;
 
-    if (normalized.isEmpty && area == null) {
-      yield* streamExamenes();
-      return;
+    if (sinFiltros) {
+      return streamExamenes();
     }
 
-    try {
-      if (normalized.isEmpty && area != null) {
-        yield* _db
-            .collection(_examenesCollection)
-            .orderBy('nombre')
-            .snapshots()
-            .map((snapshot) {
-              var examenes = snapshot.docs
-                  .map((doc) => Examen.fromMap(doc.data(), doc.id))
-                  .toList();
+    final Stream<List<Examen>> streamBase;
 
-              examenes = examenes.where((examen) {
-                final areaExamen = examen.area?.toLowerCase().trim() ?? '';
-                final areaFiltro = area.toLowerCase().trim();
-                return areaExamen == areaFiltro;
-              }).toList();
-
-              return examenes;
-            });
-        return;
-      }
-
-      yield* _db
+    if (!sinTexto) {
+      streamBase = _db
           .collection(_examenesCollection)
           .where('nombre_normalizado', isGreaterThanOrEqualTo: normalized)
-          .where('nombre_normalizado', isLessThan: '${normalized}\uf8ff')
+          .where('nombre_normalizado', isLessThan: '$normalized\uf8ff')
           .snapshots()
-          .map((snapshot) {
-            var examenes = snapshot.docs
-                .map((doc) => Examen.fromMap(doc.data(), doc.id))
-                .toList();
-
-            if (normalized.isNotEmpty) {
-              examenes = examenes.where((examen) {
-                return examen.nombre_normalizado.contains(normalized);
-              }).toList();
-            }
-
-            if (area != null && area.isNotEmpty) {
-              examenes = examenes.where((examen) {
-                final areaExamen = examen.area?.toLowerCase().trim() ?? '';
-                final areaFiltro = area.toLowerCase().trim();
-                return areaExamen == areaFiltro;
-              }).toList();
-            }
-
-            return examenes;
-          });
-    } catch (e) {
-      debugPrint('Error en búsqueda, usando caché: $e');
-
-      final cachedExamenes = await _cacheService.obtenerExamenes();
-      if (cachedExamenes != null) {
-        var resultados = cachedExamenes;
-
-        if (normalized.isNotEmpty) {
-          resultados = resultados
+          .map((snap) => snap.docs
+              .map((doc) => Examen.fromMap(doc.data(), doc.id))
               .where((e) => e.nombre_normalizado.contains(normalized))
-              .toList();
-        }
-
-        if (area != null && area.isNotEmpty) {
-          resultados = resultados.where((e) {
-            final areaExamen = e.area?.toLowerCase().trim() ?? '';
-            final areaFiltro = area.toLowerCase().trim();
-            return areaExamen == areaFiltro;
-          }).toList();
-        }
-
-        yield resultados;
-      } else {
-        yield [];
-      }
+              .toList());
+    } else {
+      streamBase = _db
+          .collection(_examenesCollection)
+          .orderBy('nombre')
+          .snapshots()
+          .map((snap) =>
+              snap.docs.map((doc) => Examen.fromMap(doc.data(), doc.id)).toList());
     }
+
+    return streamBase
+        .map((examenes) => _aplicarFiltros(
+              examenes,
+              area: area,
+              filtroTipo: filtroTipo,
+              soloUrgencia: soloUrgencia,
+              sinArea: sinArea,
+            ))
+        .handleError((error) async {
+          debugPrint('Error en streamExamenesBusqueda, usando caché: $error');
+          final cached = await _cacheService.obtenerExamenes();
+          if (cached != null && cached.isNotEmpty) {
+            return _aplicarFiltros(
+              cached,
+              area: area,
+              filtroTipo: filtroTipo,
+              soloUrgencia: soloUrgencia,
+              sinArea: sinArea,
+              queryNorm: normalized,
+            );
+          }
+          return <Examen>[];
+        });
   }
 
-  /// ----------------------------------------------------------
-  /// OBTENER UN EXAMEN POR ID (CON CACHÉ)
-  /// ----------------------------------------------------------
+  // Aplica todos los filtros en memoria sobre una lista de exámenes
+  List<Examen> _aplicarFiltros(
+    List<Examen> examenes, {
+    String? area,
+    String? filtroTipo,
+    bool soloUrgencia = false,
+    bool sinArea = true,
+    String queryNorm = '',
+  }) {
+    var r = examenes;
+
+    if (queryNorm.isNotEmpty) {
+      r = r.where((e) => e.nombre_normalizado.contains(queryNorm)).toList();
+    }
+
+    if (soloUrgencia) {
+      r = r.where((e) => e.disponible_urgencia).toList();
+    }
+
+    if (filtroTipo == 'interno') {
+      r = r.where((e) => !e.es_derivado).toList();
+    } else if (filtroTipo == 'derivado') {
+      r = r.where((e) => e.es_derivado).toList();
+    }
+
+    if (!sinArea && area != null) {
+      final areaFiltro = area.toLowerCase().trim();
+      r = r.where((e) => (e.area ?? '').toLowerCase().trim() == areaFiltro).toList();
+    }
+
+    return r;
+  }
+
+  // ── Obtener un examen por ID ─────────────────────────────────────
   Future<Examen?> getExamen(String id) async {
     try {
       final doc = await _db.collection(_examenesCollection).doc(id).get();
-      if (doc.exists) {
-        return Examen.fromMap(doc.data()!, doc.id);
-      }
+      if (doc.exists) return Examen.fromMap(doc.data()!, doc.id);
       return null;
     } catch (e) {
-      debugPrint('Error al obtener examen, buscando en caché: $e');
-
-      final cachedExamenes = await _cacheService.obtenerExamenes();
-      if (cachedExamenes != null) {
+      debugPrint('Error getExamen, buscando en caché: $e');
+      final cached = await _cacheService.obtenerExamenes();
+      if (cached != null) {
         try {
-          return cachedExamenes.firstWhere((examen) => examen.id == id);
+          return cached.firstWhere((ex) => ex.id == id);
         } catch (_) {
           return null;
         }
@@ -212,111 +179,142 @@ class FirestoreService {
     }
   }
 
-  /// ----------------------------------------------------------
-  /// GUARDAR / ACTUALIZAR EXAMEN
-  /// ----------------------------------------------------------
+  // ── Guardar / actualizar examen ──────────────────────────────────
   Future<void> saveExamen(Examen examen) async {
-    final Map<String, dynamic> data = examen.toMap();
-    final String docId = examen.id ?? '';
-    final bool isNew = docId.isEmpty;
-
+    final data = examen.toMap();
     data['nombre_normalizado'] = normalizar(examen.nombre);
     data['ultima_actualizacion'] = FieldValue.serverTimestamp();
     data['updated_by'] = getCurrentUserId();
 
+    final bool isNew = (examen.id == null || examen.id!.isEmpty);
     if (isNew) {
       data['fecha_creacion'] = FieldValue.serverTimestamp();
-    }
-
-    if (isNew) {
-      debugPrint('Creando nuevo examen...');
       await _db.collection(_examenesCollection).add(data);
     } else {
-      debugPrint('Actualizando examen con ID: ${examen.id}');
       await _db
           .collection(_examenesCollection)
-          .doc(docId)
+          .doc(examen.id)
           .set(data, SetOptions(merge: true));
     }
-
     await _invalidarCache();
   }
 
-  /// ----------------------------------------------------------
-  /// ELIMINAR EXAMEN
-  /// ----------------------------------------------------------
+  // ── Eliminar examen ──────────────────────────────────────────────
   Future<void> deleteExamen(String id) async {
     await _db.collection(_examenesCollection).doc(id).delete();
     await _invalidarCache();
   }
 
-  /// Invalida el caché para forzar una recarga
   Future<void> _invalidarCache() async {
     try {
-      final snapshot = await _db
-          .collection(_examenesCollection)
-          .orderBy('nombre')
-          .get();
-
-      final examenes = snapshot.docs
-          .map((doc) => Examen.fromMap(doc.data(), doc.id))
-          .toList();
-
+      final snapshot =
+          await _db.collection(_examenesCollection).orderBy('nombre').get();
+      final examenes =
+          snapshot.docs.map((doc) => Examen.fromMap(doc.data(), doc.id)).toList();
       await _cacheService.guardarExamenes(examenes);
-      debugPrint('Caché actualizado después de modificación');
     } catch (e) {
-      debugPrint('Error al invalidar caché: $e');
+      debugPrint('Error invalidando caché: $e');
     }
   }
 
-  /// ----------------------------------------------------------
-  /// BÚSQUEDA SIMPLE
-  /// ----------------------------------------------------------
+  // ── Búsqueda puntual (para sugerencias) ─────────────────────────
   Future<List<Examen>> searchExamenes(String query) async {
     final normalized = normalizar(query);
-
-    final snapshot = await _db
-        .collection(_examenesCollection)
-        .where('nombre_normalizado', isGreaterThanOrEqualTo: normalized)
-        .where('nombre_normalizado', isLessThan: '${normalized}z')
-        .get();
-
-    return snapshot.docs
-        .map((doc) => Examen.fromMap(doc.data(), doc.id))
-        .toList();
+    try {
+      final snapshot = await _db
+          .collection(_examenesCollection)
+          .where('nombre_normalizado', isGreaterThanOrEqualTo: normalized)
+          .where('nombre_normalizado', isLessThan: '${normalized}z')
+          .get();
+      return snapshot.docs
+          .map((doc) => Examen.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      debugPrint('Error en searchExamenes, usando caché: $e');
+      final cached = await _cacheService.obtenerExamenes();
+      if (cached != null) {
+        return cached
+            .where((e) => e.nombre_normalizado.contains(normalized))
+            .take(10)
+            .toList();
+      }
+      return [];
+    }
   }
 
-  /// ----------------------------------------------------------
-  /// ROLES DE USUARIO
-  /// ----------------------------------------------------------
+  // ── Búsqueda filtrada puntual (reemplaza al StreamBuilder) ───────
+  Future<List<Examen>> searchExamenesFiltrado(
+    String query,
+    String? area, {
+    String? filtroTipo,
+    bool soloUrgencia = false,
+  }) async {
+    final normalized = normalizar(query);
+    final bool sinTexto = normalized.isEmpty;
+    final bool sinArea = area == null || area.isEmpty;
+
+    try {
+      List<Examen> examenes;
+
+      if (!sinTexto) {
+        final snapshot = await _db
+            .collection(_examenesCollection)
+            .where('nombre_normalizado', isGreaterThanOrEqualTo: normalized)
+            .where('nombre_normalizado', isLessThan: '$normalized\uf8ff')
+            .get();
+        examenes = snapshot.docs
+            .map((doc) => Examen.fromMap(doc.data(), doc.id))
+            .where((e) => e.nombre_normalizado.contains(normalized))
+            .toList();
+      } else {
+        // Sin texto pero con filtros (ej: solo urgencia, solo derivados)
+        examenes = await getExamenesConCache();
+      }
+
+      return _aplicarFiltros(
+        examenes,
+        area: area,
+        filtroTipo: filtroTipo,
+        soloUrgencia: soloUrgencia,
+        sinArea: sinArea,
+      );
+    } catch (e) {
+      debugPrint('Error en searchExamenesFiltrado, usando caché: $e');
+      final cached = await _cacheService.obtenerExamenes();
+      if (cached != null && cached.isNotEmpty) {
+        return _aplicarFiltros(
+          cached,
+          area: area,
+          filtroTipo: filtroTipo,
+          soloUrgencia: soloUrgencia,
+          sinArea: sinArea,
+          queryNorm: normalized,
+        );
+      }
+      return [];
+    }
+  }
+
+  // ── Roles ────────────────────────────────────────────────────────
   Future<void> setUserRole(String userId, String role) async {
-    await _db.collection(_usersCollection).doc(userId).set({
-      'role': role,
-      'last_updated': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    await _db.collection(_usersCollection).doc(userId).set(
+        {'role': role, 'last_updated': FieldValue.serverTimestamp()},
+        SetOptions(merge: true));
   }
 
   Future<String?> getUserRole(String userId) async {
     try {
       final doc = await _db.collection(_usersCollection).doc(userId).get();
-      if (doc.exists) {
-        return doc.data()?['role'] as String?;
-      }
-      return null;
-    } on FirebaseException catch (e) {
+      if (!doc.exists) return null;
+      final data = doc.data();
+      return data?['role'] as String?;
+    } catch (e) {
       debugPrint('Error al obtener rol: $e');
-      if (e.code == 'permission-denied') {
-        throw Exception(
-          '[cloud_firestore/permission-denied] No tienes permisos.',
-        );
-      }
       return null;
     }
   }
 
-  /// ----------------------------------------------------------
-  /// ESTADÍSTICAS - REGISTRAR CONSULTA DE EXAMEN
-  /// ----------------------------------------------------------
+  // ── Estadísticas ─────────────────────────────────────────────────
   Future<void> registrarConsultaExamen(String examenNombre) async {
     try {
       await _db.collection(_queriesCollection).add({
@@ -325,86 +323,72 @@ class FirestoreService {
         'userId': _auth.currentUser?.uid ?? 'anonimo',
       });
     } catch (e) {
-      debugPrint('Error al registrar consulta: $e');
+      debugPrint('Error registrando consulta: $e');
     }
   }
 
-  /// ----------------------------------------------------------
-  /// ESTADÍSTICAS - FRECUENCIA DE CONSULTAS
-  /// ----------------------------------------------------------
   Stream<Map<String, int>> streamFrecuenciaConsultas() {
-    return _db.collection(_queriesCollection).snapshots().map((snapshot) {
-      Map<String, int> frecuencias = {};
-      for (var doc in snapshot.docs) {
-        String nombre = doc['examenNombre'] ?? 'Desconocido';
-        frecuencias[nombre] = (frecuencias[nombre] ?? 0) + 1;
+    return _db.collection(_queriesCollection).snapshots().map((snap) {
+      final Map<String, int> freq = {};
+      for (var doc in snap.docs) {
+        final nombre = doc['examenNombre'] as String? ?? 'Desconocido';
+        freq[nombre] = (freq[nombre] ?? 0) + 1;
       }
-      return frecuencias;
+      return freq;
     });
   }
 
-  /// ----------------------------------------------------------
-  /// ESTADÍSTICAS - TOTAL DE USUARIOS
-  /// ----------------------------------------------------------
-  Stream<int> streamTotalUsuarios() {
-    return _db.collection(_usersCollection).snapshots().map((snapshot) {
-      return snapshot.docs.length;
-    });
-  }
+  Stream<int> streamTotalUsuarios() =>
+      _db.collection(_usersCollection).snapshots().map((s) => s.docs.length);
 
-  /// ----------------------------------------------------------
-  /// ESTADÍSTICAS - USUARIOS ACTIVOS ÚLTIMOS 7 DÍAS
-  /// ----------------------------------------------------------
   Stream<int> streamUsuariosActivosUltimos7Dias() {
-    final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
-
-    return _db.collection(_usersCollection).snapshots().map((snapshot) {
+    final cutoff = DateTime.now().subtract(const Duration(days: 7));
+    return _db.collection(_usersCollection).snapshots().map((snap) {
       int activos = 0;
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final lastActive = data['last_active'] as Timestamp?;
-
-        if (lastActive != null) {
-          final lastActiveDate = lastActive.toDate();
-          if (lastActiveDate.isAfter(sevenDaysAgo)) {
-            activos++;
-          }
-        }
+      for (var doc in snap.docs) {
+        final ts = doc.data()['last_active'] as Timestamp?;
+        if (ts != null && ts.toDate().isAfter(cutoff)) activos++;
       }
       return activos;
     });
   }
 
-  /// ----------------------------------------------------------
-  /// ESTADÍSTICAS - TOTAL DE EXÁMENES
-  /// ----------------------------------------------------------
-  Stream<int> streamTotalExamenes() {
-    return _db.collection(_examenesCollection).snapshots().map((snapshot) {
-      return snapshot.docs.length;
-    });
-  }
+  Stream<int> streamTotalExamenes() =>
+      _db.collection(_examenesCollection).snapshots().map((s) => s.docs.length);
 
-  /// ----------------------------------------------------------
-  /// ESTADÍSTICAS - EXÁMENES POR ÁREA
-  /// ----------------------------------------------------------
+  Stream<int> streamTotalConsultas() =>
+      _db.collection(_queriesCollection).snapshots().map((s) => s.docs.length);
+
   Stream<Map<String, int>> streamExamenesPorArea() {
-    return _db.collection(_examenesCollection).snapshots().map((snapshot) {
-      Map<String, int> areaCount = {};
-      for (var doc in snapshot.docs) {
+    return _db.collection(_examenesCollection).snapshots().map((snap) {
+      final Map<String, int> areas = {};
+      for (var doc in snap.docs) {
         final data = doc.data();
-        final area = data['area'] as String? ?? 'Sin área';
-        areaCount[area] = (areaCount[area] ?? 0) + 1;
+        final esDer = data['es_derivado'] as bool? ?? false;
+        if (esDer) {
+          final sec = data['seccion'] as String? ?? 'Derivado';
+          areas['Derivado: $sec'] = (areas['Derivado: $sec'] ?? 0) + 1;
+        } else {
+          final area = data['area'] as String? ?? 'Sin área';
+          areas[area] = (areas[area] ?? 0) + 1;
+        }
       }
-      return areaCount;
+      return areas;
     });
   }
 
-  /// ----------------------------------------------------------
-  /// ESTADÍSTICAS - TOTAL DE CONSULTAS
-  /// ----------------------------------------------------------
-  Stream<int> streamTotalConsultas() {
-    return _db.collection(_queriesCollection).snapshots().map((snapshot) {
-      return snapshot.docs.length;
-    });
+  Future<List<Examen>> getExamenesConCache() async {
+    try {
+      final snapshot =
+          await _db.collection(_examenesCollection).orderBy('nombre').get();
+      final examenes =
+          snapshot.docs.map((doc) => Examen.fromMap(doc.data(), doc.id)).toList();
+      await _cacheService.guardarExamenes(examenes);
+      return examenes;
+    } catch (e) {
+      final cached = await _cacheService.obtenerExamenes();
+      if (cached != null && cached.isNotEmpty) return cached;
+      throw Exception('Sin conexión y sin datos en caché');
+    }
   }
 }

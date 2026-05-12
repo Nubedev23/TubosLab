@@ -149,7 +149,7 @@ class _PantallaAdminState extends State<PantallaAdmin> {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         title: Text(examenNombre),
-        subtitle: Text(examen.tubo),
+        subtitle: Text(examen.recipienteCorto),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

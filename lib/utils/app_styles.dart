@@ -9,8 +9,8 @@ class AppStyles {
   static const Color primaryLight = Color(0xFF42A5F5);
   static const Color successColor = Color(0xFF4CAF50);
   static const Color errorColor = Color(0xFFF44336);
-
   static const Color secondaryColor = Color(0xFF1976D2);
+
   //Bordes y sombras
   static const double borderRadius = 15.0;
 
@@ -30,48 +30,69 @@ class AppStyles {
   // COLORES DE TUBOS
   // ============================================
 
-  /// Mapa de colores según el tipo de tubo de laboratorio
+  /// Mapa de colores exactos (para compatibilidad con código existente)
   static const Map<String, Color> coloresTubos = {
-    'Lila': Color(0xFF9C27B0), // Lila (EDTA)
-    'Celeste': Color(0xFF03A9F4), // Celeste (Citrato)
-    'Verde': Color(0xFF4CAF50), // Verde (Heparina)
-    'Rojo': Color(0xFFE53935), // Rojo (Sin aditivo)
-    'Gris': Color(0xFF757575), // Gris (Fluoruro)
-    'Amarillo': Color(0xFFFDD835), // Amarillo
-    'Azul': Color(0xFF1976D2), // Azul oscuro
-    'Negro': Color(0xFF212121), // Negro
-    'Blanco': Color(0xFFEEEEEE), // Blanco
+    'Lila': Color(0xFF9C27B0),
+    'Celeste': Color(0xFF03A9F4),
+    'Verde': Color(0xFF4CAF50),
+    'Rojo': Color(0xFFE53935),
+    'Gris': Color(0xFF757575),
+    'Amarillo': Color(0xFFFDD835),
+    'Azul': Color(0xFF1976D2),
+    'Negro': Color(0xFF212121),
+    'Blanco': Color(0xFFEEEEEE),
   };
 
-  /// Obtiene el color correspondiente al tubo
-  /// Si no encuentra el tubo, devuelve un color por defecto (gris)
+  /// Obtiene el color a partir del texto del recipiente en cualquier formato.
+  /// Funciona con "Tapa Roja", "tapa lila", "EDTA", "T. Roja", etc.
+  static Color getColorForRecipiente(String recipiente) {
+    final r = recipiente.toLowerCase();
+
+    if (r.contains('rojo') || r.contains('roja')) return const Color(0xFFE53935);
+    if (r.contains('lila') || r.contains('edta')) return const Color(0xFF9C27B0);
+    if (r.contains('celeste') || r.contains('citrato')) return const Color(0xFF03A9F4);
+    if (r.contains('verde') && r.contains('hormon')) return const Color(0xFF2E7D32);
+    if (r.contains('verde')) return const Color(0xFF4CAF50);
+    if (r.contains('gris') || r.contains('fluoruro')) return const Color(0xFF757575);
+    if (r.contains('amarillo')) return const Color(0xFFFDD835);
+    if (r.contains('azul')) return const Color(0xFF1976D2);
+    if (r.contains('negro')) return const Color(0xFF212121);
+    if (r.contains('blanco')) return const Color(0xFFEEEEEE);
+    if (r.contains('frasco')) return const Color(0xFF0288D1);
+
+    return const Color(0xFF9E9E9E); // gris por defecto
+  }
+
+  /// Versión legacy — usa getColorForRecipiente internamente
+  /// para que el código existente que llama getColorForTubo siga funcionando
   static Color getColorForTubo(String nombreTubo) {
-    final tuboNormalizado = nombreTubo.trim();
-    return coloresTubos[tuboNormalizado] ?? const Color(0xFF9E9E9E);
+    // Primero intenta match exacto del mapa original
+    final exact = coloresTubos[nombreTubo.trim()];
+    if (exact != null) return exact;
+    // Si no, usa la lógica flexible
+    return getColorForRecipiente(nombreTubo);
   }
 
   /// Obtiene un color de texto apropiado según el fondo del tubo
-  /// Para tubos oscuros devuelve blanco, para claros devuelve negro
   static Color getTextColorForTubo(String nombreTubo) {
     final backgroundColor = getColorForTubo(nombreTubo);
-
-    // Calcula la luminancia del color de fondo
     final luminance = backgroundColor.computeLuminance();
+    return luminance > 0.5 ? Colors.black87 : Colors.white;
+  }
 
-    // Si el fondo es oscuro (luminance < 0.5), usa texto blanco
-    // Si es claro, usa texto negro
+  /// Igual que getTextColorForTubo pero acepta texto libre del recipiente
+  static Color getTextColorForRecipiente(String recipiente) {
+    final backgroundColor = getColorForRecipiente(recipiente);
+    final luminance = backgroundColor.computeLuminance();
     return luminance > 0.5 ? Colors.black87 : Colors.white;
   }
 
   /// Obtiene una versión más clara del color del tubo (para fondos)
   static Color getLightColorForTubo(String nombreTubo) {
-    final baseColor = getColorForTubo(nombreTubo);
-    return baseColor.withOpacity(0.15);
+    return getColorForTubo(nombreTubo).withOpacity(0.15);
   }
 
-  /// Obtiene el icono según el tipo de tubo (personalizable)
   static IconData getIconForTubo(String nombreTubo) {
-    // Puedes personalizar iconos específicos por tipo de tubo
     return Icons.science_outlined;
   }
 }

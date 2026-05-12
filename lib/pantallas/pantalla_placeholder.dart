@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../utils/app_styles.dart';
 
 class PantallaPlaceholder extends StatelessWidget {
   final String title;

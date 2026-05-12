@@ -34,8 +34,8 @@ class HistoryService {
       final queryHistory = QueryHistory(
         examenId: examen.id ?? '',
         examenNombre: examen.nombre,
-        tubo: examen.tubo,
-        anticoagulante: examen.anticoagulante,
+        tubo: examen.recipiente,
+        anticoagulante: examen.conservacion_transporte,
         timestamp: DateTime.now(),
         userId: userId,
       );

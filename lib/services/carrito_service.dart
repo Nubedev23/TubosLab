@@ -1,128 +1,94 @@
 import 'package:flutter/foundation.dart';
 import '../models/examen.dart';
 
-/// Define la estructura del resumen agrupado por tubo
-class ResumenTubo {
-  final String tubo;
-  final String anticoagulante;
+class ResumenRecipiente {
+  final String titulo;
+  final String subtitulo;
+  final String recipiente;
   final int cantidad;
-  final List<String> examenes; // Lista de exámenes que requieren este tubo
+  final List<String> examenes;
+  final bool esDeriivado;
+  final String? seccion;
 
-  ResumenTubo({
-    required this.tubo,
-    required this.anticoagulante,
+  ResumenRecipiente({
+    required this.titulo,
+    required this.subtitulo,
+    required this.recipiente,
     required this.cantidad,
     required this.examenes,
+    required this.esDeriivado,
+    this.seccion,
   });
 }
 
-/// Servicio de Carrito de Exámenes usando el patrón Singleton.
-/// Utiliza ValueNotifier para la gestión de estado reactiva,
-/// permitiendo que los widgets escuchen los cambios en la lista de exámenes.
 class CarritoService {
-  // Patrón Singleton
   static final CarritoService _instance = CarritoService._internal();
   factory CarritoService() => _instance;
   CarritoService._internal();
 
-  // ValueNotifier es una forma simple de gestionar el estado.
-  // Notifica a sus listeners cuando el valor (la lista de exámenes) cambia.
   final ValueNotifier<List<Examen>> _examenesEnCarrito =
       ValueNotifier<List<Examen>>([]);
 
-  /// Getter para exponer la lista de exámenes de forma reactiva.
   ValueListenable<List<Examen>> get examenesEnCarritoListenable =>
       _examenesEnCarrito;
 
-  /// Añade un examen al carrito si no está ya presente.
   void agregarExamen(Examen examen) {
-    // Usamos la lista actual como una nueva variable para evitar mutar el valor directamente
-    final currentList = _examenesEnCarrito.value;
-
-    // Solo agregar si el examen no existe (comparando por ID)
-    if (!currentList.any((e) => e.id == examen.id)) {
-      final updatedList = List<Examen>.from(currentList)..add(examen);
-      _examenesEnCarrito.value = updatedList;
-      debugPrint('Examen agregado al carrito: ${examen.nombre}');
-    } else {
-      debugPrint('El examen ${examen.nombre} ya está en el carrito.');
+    final current = _examenesEnCarrito.value;
+    if (!current.any((e) => e.id == examen.id)) {
+      _examenesEnCarrito.value = List<Examen>.from(current)..add(examen);
     }
   }
 
-  /// Elimina un examen del carrito.
   void removerExamen(String examenId) {
-    final updatedList = _examenesEnCarrito.value
-        .where((examen) => examen.id != examenId)
-        .toList();
-    _examenesEnCarrito.value = updatedList;
-    debugPrint('Examen removido del carrito con ID: $examenId');
+    _examenesEnCarrito.value =
+        _examenesEnCarrito.value.where((e) => e.id != examenId).toList();
   }
 
-  /// Limpia todos los exámenes del carrito.
-  void limpiarCarrito() {
-    _examenesEnCarrito.value = [];
-    debugPrint('Carrito limpiado.');
-  }
+  void limpiarCarrito() => _examenesEnCarrito.value = [];
 
-  /// Devuelve true si el examen ya está en el carrito.
-  bool estaEnCarrito(String examenId) {
-    return _examenesEnCarrito.value.any((e) => e.id == examenId);
-  }
+  bool estaEnCarrito(String examenId) =>
+      _examenesEnCarrito.value.any((e) => e.id == examenId);
 
-  // =========================================================================
-  // LÓGICA DE AGRUPACIÓN POR TUBO
-  // =========================================================================
-
-  /// Genera un resumen de los tubos necesarios basado en los exámenes en el carrito.
-  /// Agrupa por la combinación única de 'tubo' y 'anticoagulante' y, opcionalmente, 'area'.
-  List<ResumenTubo> obtenerResumenPorTubo() {
+  /// Agrupa internos por recipiente, derivados por sección+recipiente.
+  /// Internos primero, derivados al final.
+  List<ResumenRecipiente> obtenerResumenPorRecipiente() {
     final examenes = _examenesEnCarrito.value;
-
-    // Un mapa para agrupar los exámenes por una clave única (Area + Tubo + Anticoagulante)
     final Map<String, List<Examen>> grupos = {};
 
-    for (var examen in examenes) {
-      // Creamos una clave única para el agrupamiento.
-      // Se recomienda incluir 'area' para diferenciar, aunque el tubo sea el mismo.
-      // Si el campo 'area' no está en tu modelo, usa solo tubo::anticoagulante
-      // Asumimos que 'area', 'tubo' y 'anticoagulante' son Strings no nulos en el modelo Examen.
-      final key = '${examen.area}::${examen.tubo}::${examen.anticoagulante}';
-
-      // Inicializamos la lista si la clave es nueva
+    for (final e in examenes) {
+      final key = e.es_derivado
+          ? 'D::${e.seccion}::${e.recipiente.trim()}'
+          : 'I::${e.recipiente.trim()}';
       grupos.putIfAbsent(key, () => []);
-
-      // Agregamos el examen al grupo
-      grupos[key]!.add(examen);
+      grupos[key]!.add(e);
     }
 
-    // Convertimos el mapa de grupos a una lista de ResumenTubo
-    final List<ResumenTubo> resumen = [];
-    grupos.forEach((key, listaDeExamenes) {
-      // Extraemos los datos de la clave para la presentación.
-      final parts = key.split('::');
-      final area = parts.length > 2 ? parts[0] : ''; // Si hay área, la tomamos
-      final tubo = parts.length > 1 ? parts[parts.length - 2] : 'Desconocido';
-      final anticoagulante = parts.length > 1
-          ? parts[parts.length - 1]
-          : 'Ninguno';
+    final resumen = grupos.entries.map((entry) {
+      final partes = entry.key.split('::');
+      final esDer = partes[0] == 'D';
+      final seccion = esDer ? partes[1] : null;
+      final first = entry.value.first;
 
-      // Creamos la lista de nombres de exámenes para el detalle
-      final nombresExamenes = listaDeExamenes.map((e) => e.nombre).toList();
-
-      resumen.add(
-        ResumenTubo(
-          // Combinamos Área y Tubo para una mejor visualización en el resumen
-          tubo: area.isNotEmpty ? '$area - $tubo' : tubo,
-          anticoagulante: anticoagulante,
-          cantidad: 1, // La cantidad es 1 por cada tipo de tubo único requerido
-          examenes: nombresExamenes,
-        ),
+      return ResumenRecipiente(
+        titulo: esDer ? seccion! : first.recipienteCorto,
+        subtitulo: first.recipiente.trim(),
+        recipiente: first.recipiente.trim(),
+        cantidad: 1,
+        examenes: entry.value.map((e) => e.nombre).toList(),
+        esDeriivado: esDer,
+        seccion: seccion,
       );
-    });
+    }).toList();
 
-    // Opcional: Ordenar el resumen por área/tubo para que sea más fácil de leer
-    resumen.sort((a, b) => a.tubo.compareTo(b.tubo));
+    resumen.sort((a, b) {
+      if (a.esDeriivado != b.esDeriivado) return a.esDeriivado ? 1 : -1;
+      return a.titulo.compareTo(b.titulo);
+    });
 
     return resumen;
   }
+
+  // Alias retrocompatible
+  List<ResumenRecipiente> obtenerResumenPorTubo() =>
+      obtenerResumenPorRecipiente();
 }

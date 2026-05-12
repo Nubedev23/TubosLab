@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'pantalla_busqueda.dart';
-import 'pantalla_placeholder.dart';
 import '../services/auth_service.dart';
 import '../services/carrito_service.dart'; // Importar el servicio de carrito
 import 'pantalla_gestion_examen.dart';
 import 'pantalla_carrito.dart'; // Importar la pantalla de carrito
 import '../models/examen.dart';
-import 'pantalla_admin.dart';
 import 'pantalla_manual.dart';
 import 'pantalla_estadisticas.dart';
 

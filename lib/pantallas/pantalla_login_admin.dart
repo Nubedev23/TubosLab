@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart'; // Importamos el AuthService
 import '../utils/app_styles.dart'; // Para estilos
-import 'pantalla_principal.dart'; // Para redirigir
+// Para redirigir
 import 'pantalla_admin.dart'; // Para redirigir
 
 class PantallaLoginAdmin extends StatefulWidget {
@@ -76,19 +76,7 @@ class _PantallaLoginAdminState extends State<PantallaLoginAdmin> {
         }
       }
     }
-    //       setState(() {
-    //         // Muestra el mensaje de error útil devuelto por _authService.signIn()
-    //         _errorMsg = e.toString().replaceFirst('Exception: ', '');
-    //       });
-    //     }
-    //   } finally {
-    //     if (mounted) {
-    //       setState(() {
-    //         _isLoading = false;
-    //       });
-    //     }
-    //   }
-    // }
+
   }
 
   @override

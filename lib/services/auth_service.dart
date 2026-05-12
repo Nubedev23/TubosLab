@@ -3,57 +3,61 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rxdart/rxdart.dart';
 import '../pantallas/pantalla_bienvenida.dart';
-
+ 
 class AuthService {
-  // Instancia Singleton: asegura que solo exista una instancia de esta clase.
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
-
+ 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  // BehaviorSubject para almacenar y transmitir el rol actual del usuario.
+ 
   final BehaviorSubject<String> _userRole = BehaviorSubject.seeded('user');
-
-  // Getter público para que los Widgets escuchen los cambios de rol.
+ 
   Stream<String> get userRoleStream => _userRole.stream;
-
-  // Getter para obtener el usuario actual
   User? get currentUser => _auth.currentUser;
-
+ 
   // Constructor privado Singleton.
   AuthService._internal() {
-    // Inicializa la escucha de cambios de autenticación.
     _auth.authStateChanges().listen((User? user) {
       if (user == null) {
-        // No hay usuario logueado. Reiniciar el rol a 'user'.
+        // Sin sesión
         _userRole.add('user');
+      } else if (user.isAnonymous) {
+        // Anónimo: rol 'user' directo, sin tocar la colección users en Firestore
+        _userRole.add('user');
+        // NO llamamos _updateLastActive para anónimos porque causaría
+        // PERMISSION_DENIED al intentar escribir en users/{uid}
       } else {
-        // Usuario logueado. Iniciar la obtención del rol desde Firestore.
+        // Usuario con email: escuchar rol en Firestore
         _listenToUserRole(user.uid);
-        // Actualizar last_active cada vez que cambia el estado de auth
         _updateLastActive(user.uid);
       }
     });
   }
-
-  // Método para obtener el rol del usuario desde Firestore en tiempo real.
+ 
+  // Solo se llama para usuarios NO anónimos
   void _listenToUserRole(String userId) {
-    // Escucha el documento de usuario para cambios en el campo 'role'.
-    _firestore.collection('users').doc(userId).snapshots().listen((snapshot) {
-      if (snapshot.exists && snapshot.data() != null) {
-        final data = snapshot.data()!;
-        final role = data['role'] as String? ?? 'user';
-        _userRole.add(role); // Actualiza el stream con el rol encontrado.
-      } else {
-        _userRole.add(
-          'user',
-        ); // Si no existe el documento o rol, es un usuario regular.
-      }
-    });
+    _firestore
+        .collection('users')
+        .doc(userId)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (snapshot.exists && snapshot.data() != null) {
+              final role = snapshot.data()!['role'] as String? ?? 'user';
+              _userRole.add(role);
+            } else {
+              _userRole.add('user');
+            }
+          },
+          onError: (error) {
+            // Si hay error de permisos, degradar silenciosamente a 'user'
+            debugPrint('Error escuchando rol: $error');
+            _userRole.add('user');
+          },
+        );
   }
-
-  // Método privado para actualizar last_active
+ 
   Future<void> _updateLastActive(String userId) async {
     try {
       await _firestore.collection('users').doc(userId).set({
@@ -64,8 +68,7 @@ class AuthService {
       debugPrint('Error al actualizar last_active: $e');
     }
   }
-
-  // Método para iniciar sesión de forma anónima
+ 
   Future<void> signInAnonymously() async {
     try {
       await _auth.signInAnonymously();
@@ -73,14 +76,11 @@ class AuthService {
       debugPrint('Error al iniciar sesión anónimamente: ${e.code}');
     }
   }
-
-  // Método para cerrar sesión. Requiere el contexto para la navegación.
+ 
   Future<void> signOut(BuildContext context) async {
     try {
       await _auth.signOut();
-      // Limpia el rol en el stream.
       _userRole.add('user');
-      // Redirige a la pantalla de bienvenida.
       if (context.mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil(
           PantallaBienvenida.routeName,
@@ -91,64 +91,47 @@ class AuthService {
       debugPrint('Error al cerrar sesión: $e');
     }
   }
-
-  // Método para obtener el ID de usuario actual (puede ser null).
+ 
   String? getCurrentUserId() => _auth.currentUser?.uid;
-
-  // NUEVO: Método para detectar si el usuario actual es anónimo
+ 
   bool isAnonymous() {
     final user = _auth.currentUser;
-    if (user == null) return true; // Sin usuario = considerarlo anónimo
-    return user.isAnonymous; // Firebase tiene esta propiedad nativa
+    if (user == null) return true;
+    return user.isAnonymous;
   }
-
-  // NUEVO: Método para verificar si hay un usuario autenticado (no anónimo)
+ 
   bool isAuthenticated() {
     final user = _auth.currentUser;
     if (user == null) return false;
-    return !user.isAnonymous; // TRUE si NO es anónimo
+    return !user.isAnonymous;
   }
-
+ 
   void dispose() {
     _userRole.close();
   }
-
-  // ------------------------------------------------------------------
-  // LOGIN CON EMAIL/PASSWORD
-  // ------------------------------------------------------------------
-
-  // Método para iniciar sesión con Correo y Contraseña
+ 
   Future<void> signIn(String email, String password) async {
     try {
-      // Intenta iniciar sesión con Firebase Auth
       final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-
-      // Actualizar last_active inmediatamente después del login
       if (credential.user != null) {
         await _updateLastActive(credential.user!.uid);
       }
-
-      // Si tiene éxito, el listener de authStateChanges() actualiza el rol automáticamente.
     } on FirebaseAuthException catch (e) {
-      // Lanza un error con un mensaje útil para mostrar en PantallaLoginClinico
       throw Exception(_getErrorMessage(e.code));
     }
   }
-
-  // Método para enviar el correo de recuperación de contraseña
+ 
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
     } on FirebaseAuthException catch (e) {
-      // Manejo de errores específicos (ej. usuario no encontrado)
       throw Exception(_getErrorMessage(e.code));
     }
   }
-
-  // Helper para traducir los códigos de error de Firebase (opcional pero bueno)
+ 
   String _getErrorMessage(String errorCode) {
     switch (errorCode) {
       case 'user-not-found':

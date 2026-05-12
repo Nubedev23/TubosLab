@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
 import 'firebase_options.dart';
 import 'utils/app_styles.dart';
 import 'pantallas/pantalla_bienvenida.dart';
 import 'pantallas/pantalla_principal.dart';
-import 'pantallas/pantalla_placeholder.dart';
 import 'pantallas/pantalla_detalle_examen.dart';
 import 'pantallas/pantalla_busqueda.dart';
 import 'pantallas/pantalla_admin.dart';

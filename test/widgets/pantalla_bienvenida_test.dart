@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tubos_app/pantallas/pantalla_bienvenida.dart';
-import 'package:tubos_app/utils/app_styles.dart';
 
 void main() {
   group('PantallaBienvenida - Tests de Widget', () {

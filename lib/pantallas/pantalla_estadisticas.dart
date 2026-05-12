@@ -7,7 +7,7 @@ import '../models/query_history.dart';
 import 'pantalla_detalle_examen.dart';
 
 class PantallaEstadisticas extends StatefulWidget {
-  const PantallaEstadisticas({Key? key}) : super(key: key);
+  const PantallaEstadisticas({super.key});
 
   @override
   State<PantallaEstadisticas> createState() => _PantallaEstadisticasState();

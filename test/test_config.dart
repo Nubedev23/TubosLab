@@ -1,6 +1,7 @@
 /// Configuración y Helpers para Tests
 ///
 /// Este archivo contiene utilidades comunes para todos los tests
+library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tubos_app/models/examen.dart';

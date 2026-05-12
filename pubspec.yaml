@@ -49,6 +49,7 @@ dependencies:
   path_provider: ^2.1.5   
   http: ^1.2.2
   fl_chart: ^0.66.0 #para gráficos
+  crypto: ^3.0.3
   
 dev_dependencies:
   flutter_test:

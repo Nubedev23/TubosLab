@@ -8,133 +8,161 @@ import '../models/examen.dart';
 class PantallaResumenExamen extends StatelessWidget {
   const PantallaResumenExamen({super.key});
 
+  Color _colorRecipiente(String recipiente) {
+    final r = recipiente.toLowerCase();
+    if (r.contains('tapa roja')) return const Color(0xFFE53935);
+    if (r.contains('tapa lila') || r.contains('edta')) return const Color(0xFF9C27B0);
+    if (r.contains('tapa celeste') || r.contains('citrato')) return const Color(0xFF03A9F4);
+    if (r.contains('tapa verde') && r.contains('hormonas')) return const Color(0xFF2E7D32);
+    if (r.contains('tapa verde') && r.contains('química')) return const Color(0xFF388E3C);
+    if (r.contains('tapa verde')) return const Color(0xFF4CAF50);
+    if (r.contains('tapa gris') || r.contains('fluoruro')) return const Color(0xFF757575);
+    if (r.contains('frasco') && r.contains('estéril')) return const Color(0xFF0277BD);
+    if (r.contains('frasco')) return const Color(0xFF0288D1);
+    if (r.contains('papel filtro')) return const Color(0xFFFFA000);
+    if (r.contains('portaobjeto') || r.contains('cinta')) return const Color(0xFF546E7A);
+    if (r.contains('hisopo') || r.contains('tórula') || r.contains('torula')) {
+      return const Color(0xFF00897B);
+    }
+    return AppStyles.primaryDark;
+  }
+
+  Widget _buildTarjetaInterna(ResumenRecipiente r) {
+    final color = _colorRecipiente(r.recipiente);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: AppStyles.cardShape,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppStyles.borderRadius),
+          border: Border.all(color: color, width: 2),
+          color: color.withOpacity(0.08),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 50, height: 50,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              child: const Icon(Icons.science_outlined, color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(r.titulo,
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color)),
+                  if (r.subtitulo != r.titulo)
+                    Text(r.subtitulo,
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                  const SizedBox(height: 6),
+                  ...r.examenes.map((nombre) => Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.circle, size: 6, color: color),
+                            const SizedBox(width: 6),
+                            Expanded(child: Text(nombre, style: const TextStyle(fontSize: 13))),
+                          ],
+                        ),
+                      )),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
+              child: const Text('×1',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTarjetaDerivada(ResumenRecipiente r) {
+    final recipColor = _colorRecipiente(r.recipiente);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: AppStyles.cardShape,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppStyles.borderRadius),
+          border: Border.all(color: Colors.orange, width: 2),
+          color: const Color(0xFFFFF8E1),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.local_shipping_outlined, color: Colors.orange, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(r.seccion ?? r.titulo,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14, color: Colors.orange)),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: Colors.orange, borderRadius: BorderRadius.circular(10)),
+                  child: Text('${r.examenes.length} exam.',
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: recipColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: recipColor.withOpacity(0.35)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.science_outlined, size: 14, color: recipColor),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(r.subtitulo,
+                        style: TextStyle(
+                            fontSize: 12, color: recipColor, fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...r.examenes.map((nombre) => Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.circle, size: 6, color: Colors.orange),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(nombre, style: const TextStyle(fontSize: 13))),
+                    ],
+                  ),
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final carritoService = CarritoService();
     final cacheService = CacheService();
     final authService = AuthService();
-
-    // final resumenTubos = carritoService.obtenerResumenPorTubo();
-
-    // Widget auxiliar para mostrar cada tubo agrupado
-    Widget buildResumenTubo(ResumenTubo resumen) {
-      // Usamos el color principal del tubo (que está en la primera letra del nombre)
-      //
-      final tuboCompleto = resumen.tubo;
-      String nombreTubo;
-      if (tuboCompleto.contains(' - ')) {
-        nombreTubo = tuboCompleto.split(' - ').last;
-      } else {
-        nombreTubo = tuboCompleto;
-      }
-
-      // Obtener colores del tubo
-      final tuboColor = AppStyles.getColorForTubo(nombreTubo);
-      final textColor = AppStyles.getTextColorForTubo(nombreTubo);
-      final lightColor = AppStyles.getLightColorForTubo(nombreTubo);
-
-      final tooltipText = 'Exámenes: \n- ${resumen.examenes.join('\n- ')}';
-
-      return Tooltip(
-        message: tooltipText,
-        child: Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          elevation: 3,
-          shape: AppStyles.cardShape,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppStyles.borderRadius),
-              // Borde con color del tubo
-              border: Border.all(color: tuboColor, width: 2),
-              // ondo suave con color del tubo
-              color: lightColor,
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
-              // CircleAvatar con color del tubo
-              leading: Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: tuboColor,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: tuboColor.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.science_outlined,
-                    color: textColor,
-                    size: 28,
-                  ),
-                ),
-              ),
-              title: Text(
-                tuboCompleto, // Muestra "Área - Tubo" completo
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: tuboColor,
-                ),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  Text(
-                    'Anticoagulante: ${resumen.anticoagulante}',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${resumen.examenes.length} examen${resumen.examenes.length > 1 ? 'es' : ''} en este tubo',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[700],
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              ),
-
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: tuboColor,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: tuboColor.withOpacity(0.3),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  'x ${resumen.cantidad}',
-                  style: TextStyle(
-                    color: textColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
 
     return Scaffold(
       appBar: AppBar(
@@ -144,164 +172,161 @@ class PantallaResumenExamen extends StatelessWidget {
       ),
       body: ValueListenableBuilder<List<Examen>>(
         valueListenable: carritoService.examenesEnCarritoListenable,
-        builder: (context, examenesEnCarrito, child) {
-          final resumenTubos = carritoService.obtenerResumenPorTubo();
+        builder: (context, examenesEnCarrito, _) {
+          final resumen = carritoService.obtenerResumenPorRecipiente();
+          final internos = resumen.where((r) => !r.esDeriivado).toList();
+          final derivados = resumen.where((r) => r.esDeriivado).toList();
+
           return Column(
             children: [
-              // Título y explicación
+              // Header
               Container(
-                padding: AppStyles.padding.copyWith(top: 20, bottom: 16),
+                padding: AppStyles.padding.copyWith(top: 16, bottom: 12),
                 decoration: BoxDecoration(
-                  color: AppStyles.primaryLight.withOpacity(0.1),
+                  color: AppStyles.primaryLight.withOpacity(0.07),
                   border: Border(
-                    bottom: BorderSide(
-                      color: AppStyles.primaryDark.withOpacity(0.1),
-                      width: 1,
-                    ),
-                  ),
+                      bottom: BorderSide(
+                          color: AppStyles.primaryDark.withOpacity(0.1), width: 1)),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppStyles.primaryDark,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.assignment_turned_in,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Muestras requeridas',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppStyles.primaryDark,
-                                ),
-                              ),
-                              Text(
-                                '${resumenTubos.length} recipiente${resumenTubos.length > 1 ? 's' : ''} necesario${resumenTubos.length > 1 ? 's' : ''}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                          color: AppStyles.primaryDark,
+                          borderRadius: BorderRadius.circular(10)),
+                      child: const Icon(Icons.assignment_turned_in,
+                          color: Colors.white, size: 22),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Estos son los tubos necesarios para todos los exámenes seleccionados.',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Muestras requeridas',
+                              style: TextStyle(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppStyles.primaryDark)),
+                          Text(
+                            '${examenesEnCarrito.length} examen(es) → '
+                            '${internos.length} recipiente(s) del lab'
+                            '${derivados.isNotEmpty ? ' + ${derivados.length} grupo(s) derivado(s)' : ''}',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
 
-              // Lista de Tubos Agrupados
+              // Lista
               Expanded(
-                child: ListView.builder(
+                child: ListView(
                   padding: AppStyles.padding.copyWith(top: 16),
-                  itemCount: resumenTubos.length,
-                  itemBuilder: (context, index) {
-                    return buildResumenTubo(resumenTubos[index]);
-                  },
+                  children: [
+                    if (internos.isNotEmpty) ...[
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: Row(children: [
+                          Icon(Icons.business, size: 15, color: AppStyles.primaryDark),
+                          SizedBox(width: 6),
+                          Text('Procesados en el Laboratorio',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppStyles.primaryDark,
+                                  fontSize: 13)),
+                        ]),
+                      ),
+                      ...internos.map(_buildTarjetaInterna),
+                    ],
+                    if (internos.isNotEmpty && derivados.isNotEmpty)
+                      const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Divider()),
+                    if (derivados.isNotEmpty) ...[
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: Row(children: [
+                          Icon(Icons.local_shipping_outlined,
+                              size: 15, color: Colors.orange),
+                          SizedBox(width: 6),
+                          Text('Exámenes Derivados a Otros Centros',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange,
+                                  fontSize: 13)),
+                        ]),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: const Text(
+                          'El recipiente indicado es el que se debe usar para la extracción, '
+                          'aunque el examen se envíe a otro centro.',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      ...derivados.map(_buildTarjetaDerivada),
+                    ],
+                    const SizedBox(height: 80),
+                  ],
                 ),
               ),
 
-              // Botón Final
+              // Botón confirmar
               Container(
                 padding: AppStyles.padding.copyWith(bottom: 20, top: 10),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, -2),
-                    ),
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2))
                   ],
                 ),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () async {
-                      // NUEVO: Solo guardar en historial si está autenticado
                       final userId = authService.getCurrentUserId();
-                      final isAuthenticated =
-                          userId != null && userId != 'anonimo';
-
-                      if (isAuthenticated) {
-                        // Guardar en historial solo si está logueado
-                        final examenes = examenesEnCarrito
-                            .map((e) => e.nombre)
-                            .toList();
-
-                        final tubos = resumenTubos
-                            .map(
-                              (r) => r.tubo.contains(' - ')
-                                  ? r.tubo.split(' - ').last
-                                  : r.tubo,
-                            )
-                            .toSet()
-                            .toList();
-
+                      final isAuth = userId != null && userId != 'anonimo';
+                      if (isAuth) {
                         await cacheService.guardarSolicitudEnHistorial(
-                          cantidadExamenes: examenes.length,
-                          cantidadTubos: resumenTubos.length,
-                          examenes: examenes,
-                          tubos: tubos,
+                          cantidadExamenes: examenesEnCarrito.length,
+                          cantidadTubos: resumen.length,
+                          examenes: examenesEnCarrito.map((e) => e.nombre).toList(),
+                          tubos: resumen.map((r) => r.recipiente).toSet().toList(),
                         );
                       }
-
-                      // Limpiar carrito (para todos los usuarios)
                       carritoService.limpiarCarrito();
-
-                      // Volver al inicio
                       if (context.mounted) {
-                        Navigator.of(
-                          context,
-                        ).popUntil((route) => route.isFirst);
-
-                        final mensaje = isAuthenticated
-                            ? 'Solicitud procesada y guardada en el historial.'
-                            : 'Solicitud procesada. Inicia sesión para guardar historial.';
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(mensaje),
-                            backgroundColor: Colors.green,
-                            duration: const Duration(seconds: 3),
-                          ),
-                        );
+                        Navigator.of(context).popUntil((r) => r.isFirst);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(isAuth
+                              ? 'Solicitud procesada y guardada en el historial.'
+                              : 'Solicitud procesada. Inicia sesión para guardar historial.'),
+                          backgroundColor: Colors.green,
+                          duration: const Duration(seconds: 3),
+                        ));
                       }
                     },
-                    icon: const Icon(
-                      Icons.check_circle_outline,
-                      color: Colors.white,
-                    ),
-                    label: const Text(
-                      'Confirmar y Finalizar',
-                      style: TextStyle(fontSize: 18, color: Colors.white),
+                    icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                    label: Text(
+                      'Confirmar (${examenesEnCarrito.length} exámenes)',
+                      style: const TextStyle(fontSize: 17, color: Colors.white),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: AppStyles.cardShape,
-                      elevation: 4,
                     ),
                   ),
                 ),
