@@ -29,16 +29,13 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> {
             children: [
               // logo y título
               const Spacer(flex: 2),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppStyles.primaryDark,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.science_outlined,
-                  size: 50,
-                  color: Colors.white,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  width: 120,
+                  height: 120,
+                  fit: BoxFit.cover,
                 ),
               ),
               const SizedBox(height: 15),

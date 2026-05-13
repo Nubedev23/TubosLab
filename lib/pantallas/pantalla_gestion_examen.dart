@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_styles.dart';
 import '../services/firestore_service.dart';
+import '../services/auth_service.dart';
 import '../models/examen.dart';
 
 class PantallaGestionExamen extends StatefulWidget {
@@ -14,6 +15,7 @@ class PantallaGestionExamen extends StatefulWidget {
 
 class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
   final _firestoreService = FirestoreService();
+  final _authService = AuthService(); // ← guardia de rol
   final _formKey = GlobalKey<FormState>();
 
   final _nombreController = TextEditingController();
@@ -82,7 +84,6 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
   void _onUrgenciaChanged(bool value) {
     setState(() {
       _disponibleUrgencia = value;
-      // Actualizar horario automáticamente solo si coincide con el default
       if (value && _horarioController.text == _horarioRutina) {
         _horarioController.text = _horarioUrgencia;
       } else if (!value && _horarioController.text == _horarioUrgencia) {
@@ -172,8 +173,33 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  // ── Pantalla de acceso denegado ──────────────────────────────────
+  Widget _buildAccesoDenegado() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Acceso denegado'),
+        backgroundColor: AppStyles.primaryDark,
+        foregroundColor: Colors.white,
+      ),
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock_outline, size: 80, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Solo administradores pueden\ngestionar exámenes.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Formulario principal ─────────────────────────────────────────
+  Widget _buildFormulario() {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.examenId == null ? 'Nuevo Examen' : 'Editar Examen'),
@@ -189,7 +215,6 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ── Datos básicos ──────────────────────────────
                     _buildTextField(_nombreController, 'Nombre del Examen',
                         Icons.science_outlined),
                     const SizedBox(height: 14),
@@ -260,7 +285,6 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Selector área o sección derivada
                     if (!_esDeriivado)
                       DropdownButtonFormField<String>(
                         decoration: const InputDecoration(
@@ -268,7 +292,7 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
                           prefixIcon: Icon(Icons.business_outlined),
                           border: OutlineInputBorder(),
                         ),
-                        initialValue: _areaSeleccionada,
+                        value: _areaSeleccionada,
                         items: _areasInternas
                             .map((a) =>
                                 DropdownMenuItem(value: a, child: Text(a)))
@@ -287,7 +311,7 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
                           prefixIcon: Icon(Icons.local_shipping_outlined),
                           border: OutlineInputBorder(),
                         ),
-                        initialValue: _seccionSeleccionada,
+                        value: _seccionSeleccionada,
                         items: _seccionesDerivadas
                             .map((s) =>
                                 DropdownMenuItem(value: s, child: Text(s)))
@@ -311,7 +335,6 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
                               color: AppStyles.primaryDark)),
                     ),
 
-                    // Switch urgencia
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
@@ -369,7 +392,6 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Campo horario editable (siempre visible para casos especiales)
                     TextFormField(
                       controller: _horarioController,
                       decoration: InputDecoration(
@@ -411,6 +433,26 @@ class _PantallaGestionExamenState extends State<PantallaGestionExamen> {
                 ),
               ),
             ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // ── Guardia de seguridad: bloquea acceso si no es admin ──────────
+    return StreamBuilder<String>(
+      stream: _authService.userRoleStream,
+      builder: (context, snapshot) {
+        // Mientras carga el rol, mostrar spinner
+        if (!snapshot.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final role = snapshot.data!;
+        if (role != 'admin') return _buildAccesoDenegado();
+        return _buildFormulario();
+      },
     );
   }
 

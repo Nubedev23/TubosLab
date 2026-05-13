@@ -76,7 +76,15 @@ class AuthService {
       debugPrint('Error al iniciar sesión anónimamente: ${e.code}');
     }
   }
- 
+  // Cierra sesión sin navegar ni mostrar nada — para usar antes de un nuevo login
+  Future<void> signOutSilently() async {
+    try {
+      await _auth.signOut();
+      _userRole.add('user');
+    } catch (e) {
+      debugPrint('Error en signOutSilently: $e');
+    }
+  }
   Future<void> signOut(BuildContext context) async {
     try {
       await _auth.signOut();

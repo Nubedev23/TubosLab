@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:url_launcher/url_launcher.dart';
 import '../services/app_config_service.dart';
-import '../services/auth_service.dart'; // Importar AuthService
+import '../services/auth_service.dart';
 import '../utils/app_styles.dart';
 import 'pantalla_visor_pdf.dart';
 
 class PantallaManual extends StatelessWidget {
   PantallaManual({super.key});
 
-  // Instancia del servicio para obtener la URL
   final AppConfigService _configService = AppConfigService();
-  final AuthService _authService = AuthService(); // Agregar AuthService
+  final AuthService _authService = AuthService();
 
-  // Función para abrir el visor PDF
-  void _openPdfViewer(BuildContext context, String url) {
+  // ← async agregado para poder usar await
+  Future<void> _openPdfViewer(BuildContext context, String url) async {
     if (url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -23,13 +24,23 @@ class PantallaManual extends StatelessWidget {
       return;
     }
 
-    // Navegación a la pantalla del visor PDF
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => PantallaVisorPdf(pdfUrl: url)),
-    );
+    // En web: abrir en el navegador
+    if (kIsWeb) {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+      return;
+    }
+
+    // En móvil: usar el visor con caché
+    if (context.mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (context) => PantallaVisorPdf(pdfUrl: url)),
+      );
+    }
   }
 
-  // NUEVO: Widget para login requerido
   Widget _buildLoginRequired(BuildContext context) {
     return Center(
       child: Padding(
@@ -56,10 +67,7 @@ class PantallaManual extends StatelessWidget {
             ),
             const SizedBox(height: 30),
             ElevatedButton.icon(
-              onPressed: () {
-                // Cerrar sesión anónima y volver a bienvenida
-                _authService.signOut(context);
-              },
+              onPressed: () => _authService.signOut(context),
               icon: const Icon(Icons.login, color: Colors.white),
               label: const Text(
                 'Ir a Iniciar Sesión',
@@ -67,10 +75,7 @@ class PantallaManual extends StatelessWidget {
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppStyles.primaryDark,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
             ),
           ],
@@ -81,21 +86,17 @@ class PantallaManual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // PRIMERO: Verificar si es usuario anónimo
     if (_authService.isAnonymous()) {
       return _buildLoginRequired(context);
     }
 
-    // Si NO es anónimo, continuar con el flujo normal
     return StreamBuilder<String?>(
       stream: _configService.getManualUrlStream(),
       builder: (context, snapshot) {
-        // Mientras carga
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // Si hay error
         if (snapshot.hasError) {
           return Center(
             child: Padding(
@@ -124,7 +125,6 @@ class PantallaManual extends StatelessWidget {
 
         final manualUrl = snapshot.data ?? '';
 
-        // Si no hay URL configurada
         if (manualUrl.isEmpty) {
           return Center(
             child: Padding(
@@ -132,11 +132,7 @@ class PantallaManual extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.picture_as_pdf_outlined,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
+                  Icon(Icons.picture_as_pdf_outlined, size: 80, color: Colors.grey[400]),
                   const SizedBox(height: 20),
                   const Text(
                     'Manual de Procedimientos',
@@ -168,29 +164,21 @@ class PantallaManual extends StatelessWidget {
           );
         }
 
-        // Si hay URL configurada, mostrar botón para abrir el PDF
         return Center(
           child: Padding(
             padding: AppStyles.padding,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Icono del manual
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: AppStyles.primaryDark,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Icon(
-                    Icons.menu_book,
-                    size: 60,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.menu_book, size: 60, color: Colors.white),
                 ),
                 const SizedBox(height: 24),
-
-                // Título
                 const Text(
                   'Manual de Procedimientos',
                   style: TextStyle(
@@ -200,16 +188,12 @@ class PantallaManual extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // Descripción
                 Text(
                   'Accede al manual completo de procedimientos de laboratorio en formato PDF',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 40),
-
-                // Botón para abrir el PDF
                 ElevatedButton.icon(
                   onPressed: () => _openPdfViewer(context, manualUrl),
                   icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
@@ -219,10 +203,7 @@ class PantallaManual extends StatelessWidget {
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppStyles.primaryDark,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 30,
-                      vertical: 15,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),

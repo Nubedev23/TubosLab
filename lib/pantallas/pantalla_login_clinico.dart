@@ -1,13 +1,10 @@
-// lib/pantallas/pantalla_login_clinico.dart
-
 import 'package:flutter/material.dart';
 import '../utils/app_styles.dart';
 import '../services/auth_service.dart';
-import 'pantalla_principal.dart'; // Para redirigir
+import 'pantalla_principal.dart';
 
 class PantallaLoginClinico extends StatefulWidget {
   const PantallaLoginClinico({super.key});
-
   static const routeName = '/login-clinico';
 
   @override
@@ -29,42 +26,70 @@ class _PantallaLoginClinicoState extends State<PantallaLoginClinico> {
   }
 
   Future<void> _handleLogin() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
+    if (!_formKey.currentState!.validate()) return;
 
-      try {
-        // Llamada al nuevo método signIn de AuthService
-        await _authService.signIn(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
+    setState(() => _isLoading = true);
+
+    try {
+      // ← FIX: cerrar sesión previa (admin u anónimo) antes de loguear
+      // Esto evita que el rol de admin quede en caché al entrar como clínico
+      await _authService.signOutSilently();
+
+      await _authService.signIn(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
+
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          PantallaPrincipal.routeName,
+          (Route<dynamic> route) => false,
         );
+      }
+    } catch (e) {
+      // ← FIX: era "if (!mounted)" — nunca mostraba el error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
-        // Si el login es exitoso, redirigir a la pantalla principal
-        if (mounted) {
-          Navigator.of(context).pushNamedAndRemoveUntil(
-            PantallaPrincipal.routeName,
-            (Route<dynamic> route) => false,
-          );
-        }
-      } catch (e) {
-        // Mostrar error en caso de fallo de autenticación
-        if (!mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(e.toString().replaceFirst('Exception: ', '')),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+  Future<void> _handleOlvideContrasena() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ingresa tu correo primero para recuperar la contraseña.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    try {
+      await _authService.sendPasswordResetEmail(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Correo de recuperación enviado. Revisa tu bandeja.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -84,12 +109,8 @@ class _PantallaLoginClinicoState extends State<PantallaLoginClinico> {
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                const Icon(
-                  Icons.badge_outlined,
-                  size: 60,
-                  color: AppStyles.primaryDark,
-                ),
+              children: [
+                const Icon(Icons.badge_outlined, size: 60, color: AppStyles.primaryDark),
                 const SizedBox(height: 20),
                 Text(
                   'Ingrese sus credenciales',
@@ -98,7 +119,6 @@ class _PantallaLoginClinicoState extends State<PantallaLoginClinico> {
                 ),
                 const SizedBox(height: 30),
 
-                // Campo de Correo Electrónico
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(
@@ -116,7 +136,6 @@ class _PantallaLoginClinicoState extends State<PantallaLoginClinico> {
                 ),
                 const SizedBox(height: 15),
 
-                // Campo de Contraseña
                 TextFormField(
                   controller: _passwordController,
                   decoration: const InputDecoration(
@@ -134,7 +153,6 @@ class _PantallaLoginClinicoState extends State<PantallaLoginClinico> {
                 ),
                 const SizedBox(height: 30),
 
-                // Botón de Inicio de Sesión
                 ElevatedButton(
                   onPressed: _isLoading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
@@ -151,17 +169,9 @@ class _PantallaLoginClinicoState extends State<PantallaLoginClinico> {
                 ),
                 const SizedBox(height: 20),
 
-                // Opción Olvidé mi Contraseña
+                // ← FIX: ahora funciona de verdad con el email del campo
                 TextButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Funcionalidad de recuperación de contraseña pendiente.',
-                        ),
-                      ),
-                    );
-                  },
+                  onPressed: _handleOlvideContrasena,
                   child: const Text('Olvidé mi Contraseña'),
                 ),
               ],

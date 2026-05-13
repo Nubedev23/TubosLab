@@ -40,7 +40,11 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   // Widget para construir el AppBar, que cambia según el rol.
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      title: const Text('TubosLab'),
+      title: Image.asset( 
+        'assets/images/logo.png',
+        height: 36,
+        fit: BoxFit.contain,
+      ),
       actions: <Widget>[
         ValueListenableBuilder<List<Examen>>(
           valueListenable: _carritoService.examenesEnCarritoListenable,
@@ -89,7 +93,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
           builder: (context, snapshot) {
             final role = snapshot.data;
             // Solo si el rol es 'admin', muestra el botón de gestión
-            if (role == 'admin') {
+            if (role == 'admin' && _authService.isAuthenticated()) {
               return IconButton(
                 icon: const Icon(Icons.edit_note),
                 tooltip: 'Gestionar Exámenes',
