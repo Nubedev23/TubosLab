@@ -14,10 +14,14 @@
 8.	*Base de Datos (Firebase Firestore)*
 9.	*Seguridad y Autenticación*
 ---
-##**1. Visión General del Sistema**
+**1. Visión General del Sistema**
+
 **1.1 ¿Qué es TubosLab?**
+
 TubosLab es una aplicación móvil que digitaliza y optimiza el proceso de consulta de requisitos para la toma de muestras de laboratorio clínico. Resuelve el problema de "¿Qué tubo necesito para este examen?" de forma rápida y precisa.
+
 **1.2 Problema que Resuelve**
+
 En un laboratorio clínico:
 * Existen diferentes exámenes con diferentes recipientes
 * El examen puede tener diferente manejo si se realiza en el lugar, si es de urgencias o es derivado.
@@ -27,6 +31,7 @@ En un laboratorio clínico:
 * El personal necesita consultar manuales físicos constantemente
 
 TubosLab centraliza esta información y la hace accesible en segundos desde cualquier dispositivo (celulares, Tablet o pc).
+
 **1.3 Tipos de Usuarios**
 USUARIOS DE TUBOSLAB          
 1. ANÓNIMOS (Público General)         
@@ -45,7 +50,9 @@ USUARIOS DE TUBOSLAB
 → Panel de estadísticas             
 ---
 **2. Arquitectura de la Aplicación**
+
 **2.1 Patrón de Arquitectura: MVVM**
+
 **2.2 Principios de Diseño Aplicados**
 Singleton Pattern
 ¿Por qué?
@@ -57,6 +64,7 @@ Singleton Pattern
 * Modelos solo definen la estructura de datos
 ---
 **3. Capa de Servicios (Services)**
+
 **3.1 AuthService (auth_service.dart)**
 Propósito: Gestionar toda la autenticación de usuarios.
 Responsabilidades:
@@ -88,6 +96,7 @@ RESPUESTA DEL CARRITO SERVICE:
 - Tubo Verde (Heparina de litio): x1 → para perfil hepático y perfil lipídico
 - Tubo Lila (EDTA): x1 → para Hemograma
 TOTAL: 2 tubos (NO 3)
+
 **3.4 CacheService (cache_service.dart)**
 Propósito: Guardar datos localmente para funcionamiento offline.
 Responsabilidades:
@@ -96,6 +105,7 @@ Responsabilidades:
 3.	Guardar historial de solicitudes
 4.	Verificar expiración de caché
 Tecnología: SharedPreferences
+
 **3.5 HistoryService (history_service.dart)**
 Propósito: Gestionar historial de consultas del usuario.
 Responsabilidades:
@@ -103,35 +113,41 @@ Responsabilidades:
 2.	Obtener historial del usuario actual
 3.	Generar estadísticas personales
 4.	Limpiar historial
+
 **3.6 StatsService (stats_service.dart)**
 Propósito: Registrar métricas globales para el panel de administrador.
 Responsabilidades:
 1.	Registrar cada consulta en Firestore
 2.	Actualizar última actividad del usuario
 3.	Proveer datos para el panel de estadísticas
+
 **3.7 AnalyticsService (analytics_service.dart)**
 4.	Propósito: Integración con Firebase Analytics para métricas de uso.
-**Analytics vs Stats**
-A.	Firebase Analytics:
-B.	Eventos automáticos (aperturas de app, crashes)
-C.	Eventos personalizados
-D.	Dashboards en Firebase Console
-E.	Métricas agregadas (no datos crudos)
 
-F.	StatsService (Firestore):
-G.	Datos crudos de cada consulta
-H.	Accesible programáticamente
-I.	Panel personalizado en la app
-J.	Control total sobre los datos
+**Analytics vs Stats**
+1.	Firebase Analytics:
+2.	Eventos automáticos (aperturas de app, crashes)
+3.	Eventos personalizados
+4.	Dashboards en Firebase Console
+5.	Métricas agregadas (no datos crudos)
+6.	StatsService (Firestore):
+7.	Datos crudos de cada consulta
+8.	Accesible programáticamente
+9.	Panel personalizado en la app
+10.	Control total sobre los datos
+
 ---
 **3.8 AppConfigService (app_config_service.dart)**
 Propósito: Gestionar configuraciones globales de la app.
 Responsabilidades:
 1.	URL del manual PDF
 2.	Otras configuraciones futuras
+
 ---
 **4. Capa de Modelos (Models)**
+
 **4.1 Examen (examen.dart)**
+
 Propósito: Representar un examen de laboratorio.
 ¿Por qué nombre_normalizado?
 - Firestore Query Limitaciones:
@@ -149,6 +165,7 @@ AND nombre_normalizado < "hemo\uf8ff"
 Propósito: Representar una consulta en el historial personal.
 
 **5. Capa de Presentación (Pantallas)**
+
 **5.1 PantallaBienvenida (pantalla_bienvenida.dart)**
 Propósito: Punto de entrada de la aplicación.
 Funcionalidades:
@@ -173,28 +190,20 @@ Badge del Carrito:
     - Se agrega un examen
     - Se remueve un examen
     - Se limpia el carrito
+    - 
 **5.3 PantallaBusqueda (pantalla_busqueda.dart)**
 Propósito: Búsqueda y filtrado de exámenes.
-Flujo Completo de Búsqueda:
->Usuario escribe "hemo"
-       >    ↓
->_onSearchChanged() detecta cambio
-         >↓
->setState() actualiza _currentQuery = "hemo"
-         >↓
->StreamBuilder detecta cambio en query
-        > ↓
->Llama: firestoreService.streamExamenesBusqueda("hemo", null)
-        > ↓
->Firestore ejecuta query normalizada
-      >   ↓
->Stream emite List<Examen> con resultados
-      >   ↓
->builder() recibe snapshot con datos
->         ↓
->ListView.builder reconstruye lista
- >        ↓
->Usuario ve resultados filtrados en tiempo real
+**Flujo Completo de Búsqueda:**
+1.  **Entrada:** Usuario escribe `"hemo"`.
+2.  **Detección:** `_onSearchChanged()` detecta el cambio.
+3.  **Estado:** `setState()` actualiza `_currentQuery = "hemo"`.
+4.  **Reactividad:** `StreamBuilder` detecta cambio en query.
+5.  **Consulta:** Llama a `firestoreService.streamExamenesBusqueda("hemo", null)`.
+6.  **Ejecución:** Firestore ejecuta query normalizada.
+7.  **Emisión:** Stream emite `List<Examen>` con resultados.
+8.  **Renderizado:** `builder()` recibe snapshot y `ListView.builder` reconstruye la lista.
+9.  **Feedback:** Usuario ve resultados filtrados en tiempo real.
+    
 ---
 **5.4 PantallaDetalleExamen (pantalla_detalle_examen.dart)**
 Propósito: Mostrar información completa de un examen.
@@ -204,20 +213,25 @@ Propósito: Mostrar exámenes seleccionados.
 
 **5.6 PantallaResumenExamen (pantalla_resumen_examen.dart)**
 Propósito: Mostrar resumen consolidado de tubos necesarios.
-Visualización del Resumen:
+    **Visualización del Resumen:**
+```text
 Muestras requeridas              
 2 recipientes necesarios         
+
 Química clínica - Verde               
 Anticoagulante: Heparina de litio         
 2 exámenes en este tubo       x 1   
-• Perfil hepático                     
-• Perfin lipídico             
+  • Perfil hepático                     
+  • Perfil lipídico             
+
 Hematología - Lila                  
 Anticoagulante: EDTA K2            
 1 examen en este tubo         x 1   
-• Hemograma Completo                
-[✓ Confirmar y Finalizar]         
----
+  • Hemograma Completo                
+
+[ ✓ Confirmar y Finalizar ]       
+```
+
 **5.7 PantallaManual (pantalla_manual.dart)**
 Propósito: Acceso al manual de procedimientos en PDF.
 
@@ -227,8 +241,10 @@ Propósito: Mostrar estadísticas personales del usuario.
 **5.9 PantallaAdmin (pantalla_admin.dart)**
 Propósito: Panel de administración CRUD.
 
+---
 **6. Flujos de Navegación**
 **6.1 Flujo de Usuario Anónimo**
+```
 PantallaBienvenida
       ↓ (Tap "Iniciar Búsqueda")
 AuthService.signInAnonymously()
@@ -270,7 +286,10 @@ Muestra tubos agrupados
 Guarda en historial local
 Limpia carrito
 Navega a inicio
+```
+
 **6.3 Flujo de Administrador**
+```
 PantallaBienvenida
       ↓ (Tap "Soy Administrador")
 PantallaLoginAdmin
@@ -298,7 +317,7 @@ Stream actualiza lista automáticamente
 PantallaEstadisticasAdmin
       ↓
 Muestra métricas globales
-
+```
 **7. Gestión de Estado**
 **7.1 Singleton + Streams (AuthService)**
 - Emisor de eventos reactivo
@@ -306,7 +325,7 @@ Muestra métricas globales
 - Estado observable
 **7.3 StreamBuilder (Firestore)**
 - Stream de datos en tiempo real
-Comparación de Enfoques:
+> Comparación de Enfoques:
 SINGLETON + STREAM (AuthService)           
 Uso: Estado global que rara vez cambia     
 Ejemplo: Rol del usuario                   
@@ -319,10 +338,13 @@ Ventaja: Lightweight, fácil de usar
 STREAMBUILDER (Firestore)                  
 Uso: Datos en tiempo real desde BD          
 Ejemplo: Lista de exámenes                  
-Ventaja: Sincronización automática          
+Ventaja: Sincronización automática 
+>         
 ---
 **8. Base de Datos (Firebase Firestore)**
 **8.1 Estructura de Colecciones**
+```
+
 firestore/
 │
 ├── examenes/
@@ -356,19 +378,24 @@ firestore/
     └── manual/
         ├── pdf_url: "https://..."
         └── last_updated: timestamp
+
+```
 **8.2 Índices Necesarios**
-/Firestore Console → Indexes → Create Index
-Collection: examenes
-Fields:
+
+- Firestore Console → Indexes → Create Index
+- Collection: examenes
+- Fields:
   - nombre_normalizado (Ascending)
   - area (Ascending)
-Query scope: Collection
+- Query scope: Collection
+
 ---
 **9. Seguridad y Autenticación**
+
 **9.1 Reglas de Seguridad Firestore**
-rules_version = '2';
-    - Exámenes: Leer todos, escribir solo admin
-    -Usuarios: Leer propio o ser admin    
-  - Consultas: Crear todos, leer solo admin
-  -Config: Leer todos, escribir solo admin
+    rules_version = '2';
+- Exámenes: Leer todos, escribir solo admin
+- Usuarios: Leer propio o ser admin    
+- Consultas: Crear todos, leer solo admin
+- Config: Leer todos, escribir solo admin
 
